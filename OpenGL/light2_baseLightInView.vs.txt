@@ -1,0 +1,20 @@
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+
+out vec3 Normal;
+out vec3 FragPos;
+out vec3 LightPos;
+
+uniform vec3 lightPos;	//将光源坐标定义在顶点着色器中作为uniform，在这期间将其转换为视图控件坐标，然后传给片段着色器。注意在lightPos在我们的脚本中是默认在世界空间中的。
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+void main(){
+    gl_Position = projection * view * model * vec4(aPos, 1.0);    
+    FragPos = vec3(view * model * vec4(aPos,1.0));	//将顶点变换到世界空间中，因为需要在世界空间中进行所有的光照计算
+    Normal = mat3(transpose(inverse(view * model))) * aNormal;	//将模型矩阵求逆并转置，最后取矩阵的左上方的3*3子矩阵与模型空间中的法向量相乘，得到世界空间中的法向量(法线矩阵最好在cpu中实现，再通过uniform传入，求逆是一项开销很大的运算)
+    LightPos = vec3(view * vec4(lightPos, 1.0));	//将光源位置从世界空间转换到视图空间
+}

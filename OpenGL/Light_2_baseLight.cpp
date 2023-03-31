@@ -39,6 +39,11 @@ float yaw, pitch;
 bool firstMouse = true;
 bool isFirstEnter = false;
 
+<<<<<<< HEAD
+ImVec4 objectColor = ImVec4(1.0f, 0.5f, 0.31f, 1.0f);
+ImVec4 lightColor = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+
+=======
 // Our state
 bool show_demo_window = true;
 bool show_another_window = false;
@@ -49,6 +54,7 @@ ImVec4 lightColor = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
 
 //const char* glsl_version = "#version 130";
 
+>>>>>>> b799d46 (加入IMGUI的一些脚本，为了理解并简化过程，初步封装IMGUI到MYGUICLASS中�?
 M_GUI my;
 
 int main(void) {	
@@ -69,6 +75,8 @@ int main(void) {
 	glfwSwapInterval(1);
 
 	my.SetWindow(windowTr);
+<<<<<<< HEAD
+=======
 
 
 	//// Setup Dear ImGui context
@@ -82,6 +90,7 @@ int main(void) {
 	//// Setup Platform/Renderer backends
 	//ImGui_ImplGlfw_InitForOpenGL(windowTr, true);
 	//ImGui_ImplOpenGL3_Init(glsl_version);	
+>>>>>>> b799d46 (加入IMGUI的一些脚本，为了理解并简化过程，初步封装IMGUI到MYGUICLASS中�?
 
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		std::cout << "Failed to initiate GLAD" << std::endl;
@@ -228,10 +237,13 @@ int main(void) {
 		glfwPollEvents();
 	}
 
+<<<<<<< HEAD
+=======
 	//// Cleanup
 	//ImGui_ImplOpenGL3_Shutdown();
 	//ImGui_ImplGlfw_Shutdown();
 	//ImGui::DestroyContext();
+>>>>>>> b799d46 (加入IMGUI的一些脚本，为了理解并简化过程，初步封装IMGUI到MYGUICLASS中�?
 	my.DeleteGUI();
 
 	colorShader.deleteProgram();
