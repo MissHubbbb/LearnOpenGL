@@ -58,7 +58,7 @@ int main(void) {
 
 	glfwSetInputMode(windowTr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	Shader colorShader("light1.vs.txt", "light2_ambient.fs.txt");
+	Shader colorShader("light2_diffuseLight.vs.txt", "light2_diffuseLight.fs.txt");
 	Shader lightShader("light1.vs.txt", "light1_light.fs.txt");
 
 	glViewport(0, 0, SRCT_WIDTH, SRCT_HEIGHT);
@@ -118,8 +118,11 @@ int main(void) {
 
 	glBindVertexArray(cubeVAO);
 	//顶点位置
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
+	//法向量
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
 	//VAO解绑
 	//glBindVertexArray(0);
 
@@ -130,8 +133,8 @@ int main(void) {
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	//不需要再次读取数据，数据已经存在VBO5中了
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);	
 
 	while (!glfwWindowShouldClose(windowTr)) {
 		float currentFrame = glfwGetTime();
@@ -148,6 +151,7 @@ int main(void) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		colorShader.use();
+		colorShader.setVec3("lightPos", lightPos);
 		colorShader.SetVec3("objectColor", 1.0f, 0.5f, 0.31f);
 		colorShader.SetVec3("lightColor", 1.0f, 1.0f, 1.0f);
 		//设置视图矩阵和投影矩阵		
