@@ -2,22 +2,32 @@
 out vec4 FragColor;
 
 in vec3 Normal;
-in vec3 FragPos;
+in vec3 FragPos;	//顶点在世界空间中的位置
 
 uniform vec3 lightPos;
+uniform vec3 viewPos;	//就是摄像机(观察者)的位置向量
 uniform vec3 lightColor;
 uniform vec3 objectColor;
 
 void main(){
+    //环境光强
     float ambientStrength = 0.1;
     vec3 ambient = ambientStrength * lightColor;
 
+    //漫反射光强
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);	//顶点坐标指向光源坐标
-
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
-    
+
+    //镜面反射光强
+    //镜面反射光强强度
+    float specluarStrength = 0.5f;
+    vec3 viewDir = normalize(viewPos - FragPos);	//顶点位置指向摄像机位置
+    vec3 reflectDir = reflect(-lightDir, norm);	//reflect函数要求第一个向量是从光源指向顶点，所以取负。这个函数是求出入射光经过法线反射后的反射向量
+    float spec = pow(max(dot(viewDir, reflectDir),0.0),10);	//观察向量和反射向量越接近，镜面反射光强就越高，32是反光度
+    vec3 specular = specluarStrength * spec * lightColor;
+ 
     vec3 result = (ambient + diffuse) * objectColor;
     FragColor = vec4(result,1.0f);
 }

@@ -8,6 +8,10 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Camera.h"
 #include "Shader.h"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+#include "MYGUICLASS.h"
 
 Camera cam1;
 
@@ -15,6 +19,7 @@ glm::vec3 lightPos(1.2f, 1.0f, 2.0f);		//全局变量，光源的位置
 
 void framebuffer_size_callbackTr(GLFWwindow* window, int width, int height);
 void processInputTr(GLFWwindow* window);
+void DrawGUI(GLFWwindow* window);
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -25,22 +30,33 @@ float mixValue = 0.2f;
 
 float deltaTime = 0.0f;	//当前帧与上一帧的时间差
 float lastFrame = 0.0f;	//上一帧的时间
-
 //鼠标的初始位置（屏幕中心）
 float lastX = 400, lastY = 300;
-
 //yaw绕x轴上下俯仰，pitch绕y轴左右偏移，这里的取值是角度
 float yaw, pitch;
 
 //是不是第一次进入这个窗口
 bool firstMouse = true;
+bool isFirstEnter = false;
 
-int main(void) {
+// Our state
+bool show_demo_window = true;
+bool show_another_window = false;
+ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+ImVec4 objectColor = ImVec4(1.0f, 0.5f, 0.31f, 1.0f);
+ImVec4 lightColor = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+
+//const char* glsl_version = "#version 130";
+
+M_GUI my;
+
+int main(void) {	
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+	
 	GLFWwindow* windowTr = glfwCreateWindow(SRCT_WIDTH, SRCT_HEIGHT, "Texture Practice1", NULL, NULL);
 	if (!windowTr) {
 		std::cout << "Failed to create window" << std::endl;
@@ -50,13 +66,29 @@ int main(void) {
 
 	//绑定我们创建的窗口到当前上下文
 	glfwMakeContextCurrent(windowTr);
+	glfwSwapInterval(1);
+
+	my.SetWindow(windowTr);
+
+
+	//// Setup Dear ImGui context
+	//IMGUI_CHECKVERSION();
+	//ImGui::CreateContext();
+	//ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+	//// Setup Dear ImGui style
+	//ImGui::StyleColorsDark();
+
+	//// Setup Platform/Renderer backends
+	//ImGui_ImplGlfw_InitForOpenGL(windowTr, true);
+	//ImGui_ImplOpenGL3_Init(glsl_version);	
 
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		std::cout << "Failed to initiate GLAD" << std::endl;
 		return -1;
 	}
 
-	glfwSetInputMode(windowTr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	//glfwSetInputMode(windowTr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	Shader colorShader("light2_diffuseLight.vs.txt", "light2_diffuseLight.fs.txt");
 	Shader lightShader("light1.vs.txt", "light1_light.fs.txt");
@@ -139,21 +171,27 @@ int main(void) {
 	while (!glfwWindowShouldClose(windowTr)) {
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;
+		lastFrame = currentFrame;		
+
+		processInputTr(windowTr);		
 
 		//glfwSetCursorPosCallback(windowTr, mouse_callback);
 		glfwSetScrollCallback(windowTr, scroll_callback);
-
-		processInputTr(windowTr);
-
+		
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glEnable(GL_DEPTH_TEST);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);		
+
+		//让光源动起来
+		/*lightPos.x = 1.0f + sin(glfwGetTime()) * 2.0f;
+		lightPos.y = cos(glfwGetTime() / 2.0f) * 1.0f;
+		lightPos.z = sin(glfwGetTime() / 2.0f) * 1.0f;*/
 
 		colorShader.use();
 		colorShader.setVec3("lightPos", lightPos);
-		colorShader.SetVec3("objectColor", 1.0f, 0.5f, 0.31f);
-		colorShader.SetVec3("lightColor", 1.0f, 1.0f, 1.0f);
+		colorShader.setVec3("viewPos", cam1.Position);	//此时的摄像机是位于世界空间中的，所以不需要进行转换
+		colorShader.SetVec3("objectColor", objectColor.x, objectColor.y, objectColor.z);
+		colorShader.SetVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
 		//设置视图矩阵和投影矩阵		
 		glm::mat4 view1 = glm::mat4(1.0f);
 		glm::mat4 projection1 = glm::mat4(1.0f);
@@ -178,10 +216,23 @@ int main(void) {
 		lightShader.SetMat4("model", model1);
 		glBindVertexArray(LightVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
+		
+		bool enable = (glfwGetKey(windowTr, GLFW_KEY_SPACE) == GLFW_PRESS);
+		if (enable || isFirstEnter) {
+			isFirstEnter = true;
 
+			DrawGUI(windowTr);
+		}
+				
 		glfwSwapBuffers(windowTr);
 		glfwPollEvents();
 	}
+
+	//// Cleanup
+	//ImGui_ImplOpenGL3_Shutdown();
+	//ImGui_ImplGlfw_Shutdown();
+	//ImGui::DestroyContext();
+	my.DeleteGUI();
 
 	colorShader.deleteProgram();
 
@@ -252,4 +303,28 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 	cam1.ProcessMouseScroll(yoffset);
+}
+
+void DrawGUI(GLFWwindow* window) {
+	if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
+		isFirstEnter = false;
+
+	my.StartGUIFrame();
+
+	my.Begin("Hello, world!");
+
+	my.Text("This is some useful text.");               // Display some text (you can use a format strings too)
+	my.DrawOneFloat("lightPos_x", &lightPos.x);
+	my.DrawOneFloat("lightPos_y", &lightPos.y);
+	my.DrawOneFloat("lightPos_z", &lightPos.z);
+
+	my.DrawOneColor("objectColor", (float*)&objectColor);
+	my.DrawOneColor("lightColor", (float*)&lightColor);
+
+	if (ImGui::Button("Close Tab"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+		isFirstEnter = false;
+
+	my.End();
+
+	my.RenderGUI();
 }

@@ -70,7 +70,7 @@ public:
 		if (direction == RIGHT)
 			Position += Right * velocity;
 
-		Position.y = 0.0f;		//将其固定在xz平面，锁定y轴
+		//Position.y = 0.0f;		//将其固定在xz平面，锁定y轴
 	}
 
 	//处理鼠标的输入，并且限制欧拉角的角度范围

@@ -12,5 +12,5 @@ uniform mat4 projection;
 void main(){
     gl_Position = projection * view * model * vec4(aPos, 1.0);    
     FragPos = vec3(model * vec4(aPos,1.0));	//将顶点变换到世界空间中，因为需要在世界空间中进行所有的光照计算
-    Normal = aNormal;
+    Normal = mat3(transpose(inverse(model))) * aNormal;	//将模型矩阵求逆并转置，最后取矩阵的左上方的3*3子矩阵与模型空间中的法向量相乘，得到世界空间中的法向量(法线矩阵最好在cpu中实现，再通过uniform传入，求逆是一项开销很大的运算)
 }
