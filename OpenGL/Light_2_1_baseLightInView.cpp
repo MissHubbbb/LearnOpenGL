@@ -1,5 +1,5 @@
-//使用该脚本前需要先注释Light_1_light.cpp脚本
-
+//使用该脚本前需要先注释Light_2_baseLight.cpp脚本
+/*
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -46,12 +46,12 @@ ImVec4 lightColor = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
 
 M_GUI my;
 
-int main(void) {	
+int main(void) {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	
+
 	GLFWwindow* windowTr = glfwCreateWindow(SRCT_WIDTH, SRCT_HEIGHT, "Texture Practice1", NULL, NULL);
 	if (!windowTr) {
 		std::cout << "Failed to create window" << std::endl;
@@ -72,7 +72,8 @@ int main(void) {
 
 	//glfwSetInputMode(windowTr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	Shader colorShader("light2_diffuseLight.vs.txt", "light2_diffuseLight.fs.txt");
+	//Shader colorShader("light2_baseLightInView.vs.txt", "light2_baseLightInView.fs.txt");
+	Shader colorShader("light2_Gouraud.vs.txt", "light2_Gouraud.fs.txt");
 	Shader lightShader("light1.vs.txt", "light1_light.fs.txt");
 
 	glViewport(0, 0, SRCT_WIDTH, SRCT_HEIGHT);
@@ -148,26 +149,21 @@ int main(void) {
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	//不需要再次读取数据，数据已经存在VBO5中了
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);	
+	glEnableVertexAttribArray(0);
 
 	while (!glfwWindowShouldClose(windowTr)) {
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;		
+		lastFrame = currentFrame;
 
-		processInputTr(windowTr);		
+		processInputTr(windowTr);
 
 		//glfwSetCursorPosCallback(windowTr, mouse_callback);
 		glfwSetScrollCallback(windowTr, scroll_callback);
-		
+
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glEnable(GL_DEPTH_TEST);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);		
-
-		//让光源动起来
-		//lightPos.x = 1.0f + sin(glfwGetTime()) * 2.0f;
-		//lightPos.y = cos(glfwGetTime() / 2.0f) * 1.0f;
-		//lightPos.z = sin(glfwGetTime() / 2.0f) * 1.0f;
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		colorShader.use();
 		colorShader.setVec3("lightPos", lightPos);
@@ -198,14 +194,14 @@ int main(void) {
 		lightShader.SetMat4("model", model1);
 		glBindVertexArray(LightVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
-		
+
 		bool enable = (glfwGetKey(windowTr, GLFW_KEY_SPACE) == GLFW_PRESS);
 		if (enable || isFirstEnter) {
 			isFirstEnter = true;
 
 			DrawGUI(windowTr);
 		}
-				
+
 		glfwSwapBuffers(windowTr);
 		glfwPollEvents();
 	}
@@ -306,3 +302,4 @@ void DrawGUI(GLFWwindow* window) {
 
 	my.RenderGUI();
 }
+*/
