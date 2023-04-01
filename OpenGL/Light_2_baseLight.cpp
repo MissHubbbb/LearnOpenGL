@@ -42,6 +42,9 @@ bool isFirstEnter = false;
 ImVec4 objectColor = ImVec4(1.0f, 0.5f, 0.31f, 1.0f);
 ImVec4 lightColor = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
 
+glm::vec3 ambientColor(0.2f, 0.2f, 0.2f);
+glm::vec3 diffuseColor(0.5f, 0.5f, 0.5f);
+
 //const char* glsl_version = "#version 130";
 
 M_GUI my;
@@ -72,7 +75,7 @@ int main(void) {
 
 	//glfwSetInputMode(windowTr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	Shader colorShader("light2_diffuseLight.vs.txt", "light2_diffuseLight.fs.txt");
+	Shader colorShader("light3_material.vs.txt", "light3_material.fs.txt");
 	Shader lightShader("light1.vs.txt", "light1_light.fs.txt");
 
 	glViewport(0, 0, SRCT_WIDTH, SRCT_HEIGHT);
@@ -170,10 +173,20 @@ int main(void) {
 		//lightPos.z = sin(glfwGetTime() / 2.0f) * 1.0f;
 
 		colorShader.use();
-		colorShader.setVec3("lightPos", lightPos);
+		colorShader.setVec3("light.position", lightPos);
 		colorShader.setVec3("viewPos", cam1.Position);	//此时的摄像机是位于世界空间中的，所以不需要进行转换
-		colorShader.SetVec3("objectColor", objectColor.x, objectColor.y, objectColor.z);
-		colorShader.SetVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
+		//colorShader.SetVec3("objectColor", objectColor.x, objectColor.y, objectColor.z);
+		//colorShader.SetVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
+
+		colorShader.SetVec3("material.ambient", 0.0f, 0.1f, 0.06f);
+		colorShader.SetVec3("material.diffuse", 0.0f, 0.50980392f, 0.50980392f);
+		colorShader.SetVec3("material.specular", 0.50196078f, 0.50196078f, 0.50196078f);
+		colorShader.SetFloat("material.shininess", 32.0f);
+
+		colorShader.setVec3("light.ambient", ambientColor);
+		colorShader.setVec3("light.diffuse", diffuseColor); // 将光照调暗了一些以搭配场景
+		colorShader.SetVec3("light.specular", 1.0f, 1.0f, 1.0f);
+
 		//设置视图矩阵和投影矩阵		
 		glm::mat4 view1 = glm::mat4(1.0f);
 		glm::mat4 projection1 = glm::mat4(1.0f);
@@ -191,6 +204,8 @@ int main(void) {
 		lightShader.use();
 		lightShader.SetMat4("view", view1);
 		lightShader.SetMat4("projection", projection1);
+		lightShader.SetVec3("lightColor", lightColor.x,lightColor.y,lightColor.z);
+		//lightShader.SetVec3("objectColor", 1.0, 1.0, 1.0);
 
 		model1 = glm::mat4(1.0f);
 		model1 = glm::translate(model1, lightPos);
@@ -292,12 +307,22 @@ void DrawGUI(GLFWwindow* window) {
 	my.Begin("Hello, world!");
 
 	my.Text("This is some useful text.");               // Display some text (you can use a format strings too)
+	my.DrawOneFloat("lightColor_x", &lightColor.x);
+	my.DrawOneFloat("lightColor_y", &lightColor.y);
+	my.DrawOneFloat("lightColor_z", &lightColor.z);
+
 	my.DrawOneFloat("lightPos_x", &lightPos.x);
 	my.DrawOneFloat("lightPos_y", &lightPos.y);
 	my.DrawOneFloat("lightPos_z", &lightPos.z);
 
-	my.DrawOneColor("objectColor", (float*)&objectColor);
-	my.DrawOneColor("lightColor", (float*)&lightColor);
+	my.DrawOneFloat("cameraPos_x", &cam1.Position.x);
+	my.DrawOneFloat("cameraPos_y", &cam1.Position.y);
+	my.DrawOneFloat("cameraPos_z", &cam1.Position.z);
+
+	//my.DrawOneColor("objectColor", (float*)&objectColor);
+	//my.DrawOneColor("lightColor", (float*)&lightColor);
+	my.DrawOneColor("ambientColor", (float*)&ambientColor);
+	my.DrawOneColor("diffuseColor", (float*)&diffuseColor);
 
 	if (ImGui::Button("Close Tab"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
 		isFirstEnter = false;
