@@ -153,6 +153,7 @@
     <ClCompile Include="Light_2_1_baseLightInView.cpp" />
     <ClCompile Include="Light_2_baseLight.cpp" />
     <ClCompile Include="Light_1_light.cpp" />
+    <ClCompile Include="Light_4_LightingMap.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ObjectPractice.cpp" />
     <ClCompile Include="streamfilePrac.cpp" />

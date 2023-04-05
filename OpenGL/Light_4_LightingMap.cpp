@@ -1,11 +1,11 @@
-//使用该脚本前需要先注释Light_1_light.cpp脚本
-/*
+#define STB_IMAGE_IMPLEMENTATION
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "stb_image.h"
 #include "Camera.h"
 #include "Shader.h"
 #include "imgui.h"
@@ -17,6 +17,7 @@ Camera cam1;
 
 glm::vec3 lightPos(1.2f, 1.0f, 2.0f);		//全局变量，光源的位置
 
+unsigned int loadTexture(char const* path);
 void framebuffer_size_callbackTr(GLFWwindow* window, int width, int height);
 void processInputTr(GLFWwindow* window);
 void DrawGUI(GLFWwindow* window);
@@ -49,12 +50,12 @@ glm::vec3 diffuseColor(0.5f, 0.5f, 0.5f);
 
 M_GUI my;
 
-int main(void) {	
+int main(void) {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	
+
 	GLFWwindow* windowTr = glfwCreateWindow(SRCT_WIDTH, SRCT_HEIGHT, "Texture Practice1", NULL, NULL);
 	if (!windowTr) {
 		std::cout << "Failed to create window" << std::endl;
@@ -75,55 +76,56 @@ int main(void) {
 
 	//glfwSetInputMode(windowTr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	Shader colorShader("light3_material.vs.txt", "light3_material.fs.txt");
+	Shader colorShader("light4_LightMap.vs.txt", "light4_LightMap.fs.txt");
 	Shader lightShader("light1.vs.txt", "light1_light.fs.txt");
 
 	glViewport(0, 0, SRCT_WIDTH, SRCT_HEIGHT);
 	glfwSetFramebufferSizeCallback(windowTr, framebuffer_size_callbackTr);
 
-	//前三个是顶点坐标信息，后三个是顶点对应的法向量信息
+	//前三个是顶点坐标信息，中间三个是顶点对应的法向量信息，后面两个是uv坐标
 	float vertices[] = {
-	-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-	 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-	 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-	 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-	-0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-	-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		// positions          // normals           // texture coords
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
 
-	-0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-	 0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-	 0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-	 0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-	-0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-	-0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
 
-	-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-	-0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-	-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-	-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-	-0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-	-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
 
-	 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-	 0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-	 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-	 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-	 0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-	 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
 
-	-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-	 0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-	 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-	 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-	-0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-	-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
 
-	-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-	 0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-	 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-	 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-	-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-	-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
 	};
 
 	unsigned int VBO, cubeVAO;
@@ -135,14 +137,16 @@ int main(void) {
 
 	glBindVertexArray(cubeVAO);
 	//顶点位置
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 	//法向量
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
+	//贴图坐标
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glEnableVertexAttribArray(2);
 	//VAO解绑
-	//glBindVertexArray(0);
-
+	//glBindVertexArray(0);	
 
 	unsigned int LightVAO;
 	glGenVertexArrays(1, &LightVAO);
@@ -150,22 +154,32 @@ int main(void) {
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	//不需要再次读取数据，数据已经存在VBO5中了
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);	
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	unsigned int diffuseMap = loadTexture("container2.png");
+	unsigned int specularMap = loadTexture("container2_specular.png");		//镜面贴图
+	//unsigned int specularMap = loadTexture("lighting_maps_specular_color.png");		//彩色镜面贴图
+	unsigned int emissionMap = loadTexture("matrix.jpg");		//放射光贴图
+
+	colorShader.use();
+	colorShader.SetInt("material.diffuse", 0);
+	colorShader.SetInt("material.specular", 1);
+	colorShader.SetInt("material.emissionMap", 2);
 
 	while (!glfwWindowShouldClose(windowTr)) {
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;		
+		lastFrame = currentFrame;
 
-		processInputTr(windowTr);		
+		processInputTr(windowTr);
 
 		//glfwSetCursorPosCallback(windowTr, mouse_callback);
 		glfwSetScrollCallback(windowTr, scroll_callback);
-		
+
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glEnable(GL_DEPTH_TEST);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);		
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		//让光源动起来
 		//lightPos.x = 1.0f + sin(glfwGetTime()) * 2.0f;
@@ -178,8 +192,8 @@ int main(void) {
 		//colorShader.SetVec3("objectColor", objectColor.x, objectColor.y, objectColor.z);
 		//colorShader.SetVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
 
-		colorShader.SetVec3("material.ambient", 0.0f, 0.1f, 0.06f);
-		colorShader.SetVec3("material.diffuse", 0.0f, 0.50980392f, 0.50980392f);
+		//colorShader.SetVec3("material.ambient", 0.0f, 0.1f, 0.06f);		
+		//colorShader.SetVec3("material.diffuse", 0.0f, 0.50980392f, 0.50980392f);
 		colorShader.SetVec3("material.specular", 0.50196078f, 0.50196078f, 0.50196078f);
 		colorShader.SetFloat("material.shininess", 32.0f);
 
@@ -198,13 +212,21 @@ int main(void) {
 
 		glm::mat4 model1 = glm::mat4(1.0f);
 		colorShader.SetMat4("model", model1);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, diffuseMap);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, specularMap);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, emissionMap);
+
 		glBindVertexArray(cubeVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		lightShader.use();
 		lightShader.SetMat4("view", view1);
 		lightShader.SetMat4("projection", projection1);
-		lightShader.SetVec3("lightColor", lightColor.x,lightColor.y,lightColor.z);
+		lightShader.SetVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
 		//lightShader.SetVec3("objectColor", 1.0, 1.0, 1.0);
 
 		model1 = glm::mat4(1.0f);
@@ -213,14 +235,14 @@ int main(void) {
 		lightShader.SetMat4("model", model1);
 		glBindVertexArray(LightVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
-		
+
 		bool enable = (glfwGetKey(windowTr, GLFW_KEY_SPACE) == GLFW_PRESS);
 		if (enable || isFirstEnter) {
 			isFirstEnter = true;
 
 			DrawGUI(windowTr);
 		}
-				
+
 		glfwSwapBuffers(windowTr);
 		glfwPollEvents();
 	}
@@ -331,4 +353,51 @@ void DrawGUI(GLFWwindow* window) {
 
 	my.RenderGUI();
 }
-*/
+
+
+unsigned int loadTexture(char const* path) {
+	unsigned int texture;
+	//纹理也是使用ID引用的，第一个参数是生成纹理的数量，第二个是ID号(可以是数组)	
+	//glGenTextures(1, &texture);
+	glGenTextures(1, &texture);	
+
+	//加载并生成纹理
+	int width1, height1, nrChannels1;
+	//加载图像前，反转图像的y轴
+	stbi_set_flip_vertically_on_load(true);
+	//加载图片：宽度，高度，颜色通道的个数
+	unsigned char* data = stbi_load(path, &width1, &height1, &nrChannels1, 0);
+
+	if (data) {
+		GLenum format;
+		if (nrChannels1 == 1)
+			format = GL_RED;
+		else if (nrChannels1 == 3)
+			format = GL_RGB;
+		else if (nrChannels1 == 4)
+			format = GL_RGBA;
+
+		//绑定纹理，以便后续的纹理指令对其进行操作
+		glBindTexture(GL_TEXTURE_2D, texture);
+
+		//使用前面的图片数据生成纹理，当调用glTexImage2D时，当前绑定的纹理对象就会被附加上纹理图像
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width1, height1, 0, format, GL_UNSIGNED_BYTE, data);
+
+		//为当前绑定的纹理自动生成所有需要的多级渐远纹理
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		//为当前绑定的纹理对象设置环绕、过滤方式
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+	else {
+		std::cout << "Failed to load texture1" << std::endl;
+	}
+
+	//释放内存
+	stbi_image_free(data);
+
+	return texture;
+}
