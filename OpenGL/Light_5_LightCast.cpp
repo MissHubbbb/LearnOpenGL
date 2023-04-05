@@ -1,4 +1,3 @@
-/*
 #define STB_IMAGE_IMPLEMENTATION
 #include <iostream>
 #include <glad/glad.h>
@@ -13,10 +12,12 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "MYGUICLASS.h"
+#include "MyTexture.h"
 
 Camera cam1;
 
 glm::vec3 lightPos(1.2f, 1.0f, 2.0f);		//全局变量，光源的位置
+glm::vec3 lightDir(-0.2f, -1.0f, -0.3f);
 
 unsigned int loadTexture(char const* path);
 void framebuffer_size_callbackTr(GLFWwindow* window, int width, int height);
@@ -77,7 +78,7 @@ int main(void) {
 
 	//glfwSetInputMode(windowTr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	Shader colorShader("light4_LightMap.vs.txt", "light4_LightMap.fs.txt");
+	Shader colorShader("light4_LightMap.vs.txt", "light4_LightCast_Dir.fs.txt");
 	Shader lightShader("light1.vs.txt", "light1_light.fs.txt");
 
 	glViewport(0, 0, SRCT_WIDTH, SRCT_HEIGHT);
@@ -129,6 +130,19 @@ int main(void) {
 		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
 	};
 
+	glm::vec3 cubePositions[] = {
+	glm::vec3(0.0f,  0.0f,  0.0f),
+	glm::vec3(2.0f,  5.0f, -15.0f),
+	glm::vec3(-1.5f, -2.2f, -2.5f),
+	glm::vec3(-3.8f, -2.0f, -12.3f),
+	glm::vec3(2.4f, -0.4f, -3.5f),
+	glm::vec3(-1.7f,  3.0f, -7.5f),
+	glm::vec3(1.3f, -2.0f, -2.5f),
+	glm::vec3(1.5f,  2.0f, -2.5f),
+	glm::vec3(1.5f,  0.2f, -1.5f),
+	glm::vec3(-1.3f,  1.0f, -1.5f)
+	};
+
 	unsigned int VBO, cubeVAO;
 	glGenVertexArrays(1, &cubeVAO);
 	glGenBuffers(1, &VBO);
@@ -158,15 +172,15 @@ int main(void) {
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 
-	unsigned int diffuseMap = loadTexture("container2.png");
-	unsigned int specularMap = loadTexture("container2_specular.png");		//镜面贴图
-	//unsigned int specularMap = loadTexture("lighting_maps_specular_color.png");		//彩色镜面贴图
-	unsigned int emissionMap = loadTexture("matrix.jpg");		//放射光贴图
+	MyTexture te1("container2.png");
+	MyTexture te2("container2_specular.png");
+
+	unsigned int diffuseMap = te1.textureID;
+	unsigned int specularMap = te2.textureID;		//镜面贴图
 
 	colorShader.use();
 	colorShader.SetInt("material.diffuse", 0);
 	colorShader.SetInt("material.specular", 1);
-	colorShader.SetInt("material.emissionMap", 2);
 
 	while (!glfwWindowShouldClose(windowTr)) {
 		float currentFrame = glfwGetTime();
@@ -182,19 +196,11 @@ int main(void) {
 		glEnable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		//让光源动起来
-		//lightPos.x = 1.0f + sin(glfwGetTime()) * 2.0f;
-		//lightPos.y = cos(glfwGetTime() / 2.0f) * 1.0f;
-		//lightPos.z = sin(glfwGetTime() / 2.0f) * 1.0f;
-
-		colorShader.use();
-		colorShader.setVec3("light.position", lightPos);
+		colorShader.use();		
+		//colorShader.setVec3("light.position", lightPos);
+		colorShader.setVec3("light.direction", lightDir);
 		colorShader.setVec3("viewPos", cam1.Position);	//此时的摄像机是位于世界空间中的，所以不需要进行转换
-		//colorShader.SetVec3("objectColor", objectColor.x, objectColor.y, objectColor.z);
-		//colorShader.SetVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
 
-		//colorShader.SetVec3("material.ambient", 0.0f, 0.1f, 0.06f);		
-		//colorShader.SetVec3("material.diffuse", 0.0f, 0.50980392f, 0.50980392f);
 		colorShader.SetVec3("material.specular", 0.50196078f, 0.50196078f, 0.50196078f);
 		colorShader.SetFloat("material.shininess", 32.0f);
 
@@ -211,18 +217,25 @@ int main(void) {
 		colorShader.SetMat4("view", view1);
 		colorShader.SetMat4("projection", projection1);
 
-		glm::mat4 model1 = glm::mat4(1.0f);
-		colorShader.SetMat4("model", model1);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, diffuseMap);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, specularMap);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, emissionMap);
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D, diffuseMap);
+		te1.use(diffuseMap,0);
+		te2.use(specularMap,1);
+		//glActiveTexture(GL_TEXTURE1);
+		//glBindTexture(GL_TEXTURE_2D, specularMap);
 
 		glBindVertexArray(cubeVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		
+		for (unsigned int i = 0; i < 10; i++)
+		{
+			glm::mat4 model1 = glm::mat4(1.0f);
+			model1 = glm::translate(model1, cubePositions[i]);
+			float angle = 20.0f * i;
+			model1 = glm::rotate(model1, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+			colorShader.SetMat4("model", model1);
+
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}				
 
 		lightShader.use();
 		lightShader.SetMat4("view", view1);
@@ -230,10 +243,11 @@ int main(void) {
 		lightShader.SetVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
 		//lightShader.SetVec3("objectColor", 1.0, 1.0, 1.0);
 
-		model1 = glm::mat4(1.0f);
-		model1 = glm::translate(model1, lightPos);
-		model1 = glm::scale(model1, glm::vec3(0.2f));
-		lightShader.SetMat4("model", model1);
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, lightPos);
+		model = glm::scale(model, glm::vec3(0.2f));
+		lightShader.SetMat4("model", model);
 		glBindVertexArray(LightVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -334,9 +348,13 @@ void DrawGUI(GLFWwindow* window) {
 	my.DrawOneFloat("lightColor_y", &lightColor.y);
 	my.DrawOneFloat("lightColor_z", &lightColor.z);
 
-	my.DrawOneFloat("lightPos_x", &lightPos.x);
+	/*my.DrawOneFloat("lightPos_x", &lightPos.x);
 	my.DrawOneFloat("lightPos_y", &lightPos.y);
-	my.DrawOneFloat("lightPos_z", &lightPos.z);
+	my.DrawOneFloat("lightPos_z", &lightPos.z);*/
+
+	my.DrawOneFloat("lightDir_x", &lightDir.x);
+	my.DrawOneFloat("lightDir_y", &lightDir.y);
+	my.DrawOneFloat("lightDir_z", &lightDir.z);
 
 	my.DrawOneFloat("cameraPos_x", &cam1.Position.x);
 	my.DrawOneFloat("cameraPos_y", &cam1.Position.y);
@@ -355,51 +373,3 @@ void DrawGUI(GLFWwindow* window) {
 	my.RenderGUI();
 }
 
-
-unsigned int loadTexture(char const* path) {
-	unsigned int texture;
-	//纹理也是使用ID引用的，第一个参数是生成纹理的数量，第二个是ID号(可以是数组)	
-	//glGenTextures(1, &texture);
-	glGenTextures(1, &texture);	
-
-	//加载并生成纹理
-	int width1, height1, nrChannels1;
-	//加载图像前，反转图像的y轴
-	stbi_set_flip_vertically_on_load(true);
-	//加载图片：宽度，高度，颜色通道的个数
-	unsigned char* data = stbi_load(path, &width1, &height1, &nrChannels1, 0);
-
-	if (data) {
-		GLenum format;
-		if (nrChannels1 == 1)
-			format = GL_RED;
-		else if (nrChannels1 == 3)
-			format = GL_RGB;
-		else if (nrChannels1 == 4)
-			format = GL_RGBA;
-
-		//绑定纹理，以便后续的纹理指令对其进行操作
-		glBindTexture(GL_TEXTURE_2D, texture);
-
-		//使用前面的图片数据生成纹理，当调用glTexImage2D时，当前绑定的纹理对象就会被附加上纹理图像
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width1, height1, 0, format, GL_UNSIGNED_BYTE, data);
-
-		//为当前绑定的纹理自动生成所有需要的多级渐远纹理
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		//为当前绑定的纹理对象设置环绕、过滤方式
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	}
-	else {
-		std::cout << "Failed to load texture1" << std::endl;
-	}
-
-	//释放内存
-	stbi_image_free(data);
-
-	return texture;
-}
-*/

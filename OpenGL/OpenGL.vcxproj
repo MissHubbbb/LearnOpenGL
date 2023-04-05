@@ -154,6 +154,7 @@
     <ClCompile Include="Light_2_baseLight.cpp" />
     <ClCompile Include="Light_1_light.cpp" />
     <ClCompile Include="Light_4_LightingMap.cpp" />
+    <ClCompile Include="Light_5_LightCast.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ObjectPractice.cpp" />
     <ClCompile Include="streamfilePrac.cpp" />
@@ -173,6 +174,7 @@
     <ClInclude Include="imstb_textedit.h" />
     <ClInclude Include="imstb_truetype.h" />
     <ClInclude Include="MYGUICLASS.h" />
+    <ClInclude Include="MyTexture.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>

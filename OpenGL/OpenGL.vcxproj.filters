@@ -72,6 +72,9 @@
     <ClCompile Include="Light_4_LightingMap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Light_5_LightCast.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Shader.h">
@@ -111,6 +114,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="MYGUICLASS.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MyTexture.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
