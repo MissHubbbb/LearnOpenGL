@@ -81,7 +81,7 @@ public:
 	}
 
 	void DrawOneFloat(const char * name,float * f) {
-		ImGui::SliderFloat(name, f, 0.0f, 1.0f);
+		ImGui::SliderFloat(name, f, -2.0f, 2.0f);
 	}
 
 	void DrawOneColor(const char* name, float* col) {

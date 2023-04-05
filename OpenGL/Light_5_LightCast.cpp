@@ -181,6 +181,9 @@ int main(void) {
 	colorShader.use();
 	colorShader.SetInt("material.diffuse", 0);
 	colorShader.SetInt("material.specular", 1);
+	colorShader.SetFloat("light.constant", 1.0f);
+	colorShader.SetFloat("light.linear", 0.09f);
+	colorShader.SetFloat("light.quadratic", 0.032f);
 
 	while (!glfwWindowShouldClose(windowTr)) {
 		float currentFrame = glfwGetTime();
@@ -189,7 +192,7 @@ int main(void) {
 
 		processInputTr(windowTr);
 
-		//glfwSetCursorPosCallback(windowTr, mouse_callback);
+		glfwSetCursorPosCallback(windowTr, mouse_callback);
 		glfwSetScrollCallback(windowTr, scroll_callback);
 
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -197,8 +200,12 @@ int main(void) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		colorShader.use();		
-		//colorShader.setVec3("light.position", lightPos);
-		colorShader.setVec3("light.direction", lightDir);
+		//colorShader.setVec3("light.position", lightPos);		//光源方块作为手电筒的起点
+		colorShader.SetVec3("light.position", cam1.Position.x, cam1.Position.y, cam1.Position.z);	//摄像机位置作为手电筒的起点
+		//colorShader.setVec3("light.direction", lightDir);
+		colorShader.setVec3("light.direction", cam1.Front);
+		colorShader.SetFloat("light.cutOff", glm::cos(glm::radians(12.5f)));		//传入cos值，直接与LightDir和SpotDir向量的点积结果cos值进行比较，就不需要求反余弦值，是个开销很大的运算
+		colorShader.SetFloat("light.outerCutOff", glm::cos(glm::radians(17.5f)));
 		colorShader.setVec3("viewPos", cam1.Position);	//此时的摄像机是位于世界空间中的，所以不需要进行转换
 
 		colorShader.SetVec3("material.specular", 0.50196078f, 0.50196078f, 0.50196078f);
@@ -347,14 +354,17 @@ void DrawGUI(GLFWwindow* window) {
 	my.DrawOneFloat("lightColor_x", &lightColor.x);
 	my.DrawOneFloat("lightColor_y", &lightColor.y);
 	my.DrawOneFloat("lightColor_z", &lightColor.z);
+	//my.SameLine();
 
-	/*my.DrawOneFloat("lightPos_x", &lightPos.x);
+	my.DrawOneFloat("lightPos_x", &lightPos.x);
 	my.DrawOneFloat("lightPos_y", &lightPos.y);
-	my.DrawOneFloat("lightPos_z", &lightPos.z);*/
+	my.DrawOneFloat("lightPos_z", &lightPos.z);
+	//my.SameLine();
 
 	my.DrawOneFloat("lightDir_x", &lightDir.x);
 	my.DrawOneFloat("lightDir_y", &lightDir.y);
 	my.DrawOneFloat("lightDir_z", &lightDir.z);
+	//my.SameLine();
 
 	my.DrawOneFloat("cameraPos_x", &cam1.Position.x);
 	my.DrawOneFloat("cameraPos_y", &cam1.Position.y);
