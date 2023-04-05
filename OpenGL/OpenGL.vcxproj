@@ -155,6 +155,7 @@
     <ClCompile Include="Light_1_light.cpp" />
     <ClCompile Include="Light_4_LightingMap.cpp" />
     <ClCompile Include="Light_5_LightCast.cpp" />
+    <ClCompile Include="Light_6_MutipleLightSources.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ObjectPractice.cpp" />
     <ClCompile Include="streamfilePrac.cpp" />

@@ -1,4 +1,3 @@
-/*
 #define STB_IMAGE_IMPLEMENTATION
 #include <iostream>
 #include <glad/glad.h>
@@ -79,7 +78,7 @@ int main(void) {
 
 	//glfwSetInputMode(windowTr, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	Shader colorShader("light4_LightMap.vs.txt", "light5_LightCast_Dir.fs.txt");
+	Shader colorShader("light4_LightMap.vs.txt", "light6_MultipleLightSources.fs.txt");
 	Shader lightShader("light1.vs.txt", "light1_light.fs.txt");
 
 	glViewport(0, 0, SRCT_WIDTH, SRCT_HEIGHT);
@@ -144,6 +143,22 @@ int main(void) {
 	glm::vec3(-1.3f,  1.0f, -1.5f)
 	};
 
+	//四个点光源的位置
+	glm::vec3 pointLightPositions[] = {
+	glm::vec3(0.7f,  0.2f,  2.0f),
+	glm::vec3(2.3f, -3.3f, -4.0f),
+	glm::vec3(-4.0f,  2.0f, -12.0f),
+	glm::vec3(0.0f,  0.0f, -3.0f)
+	};
+
+	//四个光源,每个光源下的颜色分量
+	glm::vec3 pointLightColors[] = {
+	glm::vec3(1.0f, 0.6f, 0.0f),
+	glm::vec3(1.0f, 0.0f, 0.0f),
+	glm::vec3(1.0f, 1.0, 0.0),
+	glm::vec3(0.2f, 0.2f, 1.0f)
+	};
+
 	unsigned int VBO, cubeVAO;
 	glGenVertexArrays(1, &cubeVAO);
 	glGenBuffers(1, &VBO);
@@ -182,6 +197,8 @@ int main(void) {
 	colorShader.use();
 	colorShader.SetInt("material.diffuse", 0);
 	colorShader.SetInt("material.specular", 1);
+	colorShader.SetVec3("material.specular", 0.50196078f, 0.50196078f, 0.50196078f);
+	colorShader.SetFloat("material.shininess", 32.0f);
 	colorShader.SetFloat("light.constant", 1.0f);
 	colorShader.SetFloat("light.linear", 0.09f);
 	colorShader.SetFloat("light.quadratic", 0.032f);
@@ -196,25 +213,66 @@ int main(void) {
 		glfwSetCursorPosCallback(windowTr, mouse_callback);
 		glfwSetScrollCallback(windowTr, scroll_callback);
 
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClearColor(0.75f, 0.52f, 0.3f, 1.0f);
 		glEnable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		colorShader.use();		
-		//colorShader.setVec3("light.position", lightPos);		//光源方块作为手电筒的起点
-		colorShader.SetVec3("light.position", cam1.Position.x, cam1.Position.y, cam1.Position.z);	//摄像机位置作为手电筒的起点
-		//colorShader.setVec3("light.direction", lightDir);
-		colorShader.setVec3("light.direction", cam1.Front);
-		colorShader.SetFloat("light.cutOff", glm::cos(glm::radians(12.5f)));		//传入cos值，直接与LightDir和SpotDir向量的点积结果cos值进行比较，就不需要求反余弦值，是个开销很大的运算
-		colorShader.SetFloat("light.outerCutOff", glm::cos(glm::radians(17.5f)));
+		colorShader.use();
 		colorShader.setVec3("viewPos", cam1.Position);	//此时的摄像机是位于世界空间中的，所以不需要进行转换
 
-		colorShader.SetVec3("material.specular", 0.50196078f, 0.50196078f, 0.50196078f);
-		colorShader.SetFloat("material.shininess", 32.0f);
+		// directional light
+		colorShader.SetVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
+		colorShader.SetVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
+		colorShader.SetVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
+		colorShader.SetVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
 
-		colorShader.setVec3("light.ambient", ambientColor);
-		colorShader.setVec3("light.diffuse", diffuseColor); // 将光照调暗了一些以搭配场景
-		colorShader.SetVec3("light.specular", 1.0f, 1.0f, 1.0f);
+		// point light 1
+		colorShader.setVec3("pointLights[0].position", pointLightPositions[0]);
+		colorShader.SetVec3("pointLights[0].ambient", pointLightColors[0].x * 0.1, pointLightColors[0].y * 0.1, pointLightColors[0].z * 0.1);
+		colorShader.SetVec3("pointLights[0].diffuse", pointLightColors[0].x, pointLightColors[0].y, pointLightColors[0].z);
+		colorShader.SetVec3("pointLights[0].specular", pointLightColors[0].x, pointLightColors[0].y, pointLightColors[0].z);
+		colorShader.SetFloat("pointLights[0].constant", 1.0f);
+		colorShader.SetFloat("pointLights[0].linear", 0.09f);
+		colorShader.SetFloat("pointLights[0].quadratic", 0.032f);
+
+		// point light 2
+		colorShader.setVec3("pointLights[1].position", pointLightPositions[1]);
+		colorShader.SetVec3("pointLights[1].ambient", pointLightColors[1].x * 0.1, pointLightColors[1].y * 0.1, pointLightColors[1].z * 0.1);
+		colorShader.SetVec3("pointLights[1].diffuse", pointLightColors[1].x, pointLightColors[1].y, pointLightColors[1].z);
+		colorShader.SetVec3("pointLights[1].specular", pointLightColors[1].x, pointLightColors[1].y, pointLightColors[1].z);
+		colorShader.SetFloat("pointLights[1].constant", 1.0f);
+		colorShader.SetFloat("pointLights[1].linear", 0.09f);
+		colorShader.SetFloat("pointLights[1].quadratic", 0.032f);
+
+		// point light 3
+		colorShader.setVec3("pointLights[2].position", pointLightPositions[2]);
+		colorShader.SetVec3("pointLights[2].ambient", pointLightColors[2].x * 0.1, pointLightColors[2].y * 0.1, pointLightColors[2].z * 0.1);
+		colorShader.SetVec3("pointLights[2].diffuse", pointLightColors[2].x, pointLightColors[2].y, pointLightColors[2].z);
+		colorShader.SetVec3("pointLights[2].specular", pointLightColors[2].x, pointLightColors[2].y, pointLightColors[2].z);
+		colorShader.SetFloat("pointLights[2].constant", 1.0f);
+		colorShader.SetFloat("pointLights[2].linear", 0.09f);
+		colorShader.SetFloat("pointLights[2].quadratic", 0.032f);
+
+		// point light 4
+		colorShader.setVec3("pointLights[3].position", pointLightPositions[3]);
+		colorShader.SetVec3("pointLights[3].ambient", pointLightColors[3].x * 0.1, pointLightColors[3].y * 0.1, pointLightColors[3].z * 0.1);
+		colorShader.SetVec3("pointLights[3].diffuse", pointLightColors[3].x, pointLightColors[3].y, pointLightColors[3].z);
+		colorShader.SetVec3("pointLights[3].specular", pointLightColors[3].x, pointLightColors[3].y, pointLightColors[3].z);
+		colorShader.SetFloat("pointLights[3].constant", 1.0f);
+		colorShader.SetFloat("pointLights[3].linear", 0.09f);
+		colorShader.SetFloat("pointLights[3].quadratic", 0.032f);
+
+		// spotLight
+		colorShader.setVec3("spotLight.position", cam1.Position);
+		colorShader.setVec3("spotLight.direction", cam1.Front);
+		colorShader.SetVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
+		colorShader.SetVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
+		colorShader.SetVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
+		colorShader.SetFloat("spotLight.constant", 1.0f);
+		colorShader.SetFloat("spotLight.linear", 0.09f);
+		colorShader.SetFloat("spotLight.quadratic", 0.032f);
+		colorShader.SetFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
+		colorShader.SetFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));
 
 		//设置视图矩阵和投影矩阵		
 		glm::mat4 view1 = glm::mat4(1.0f);
@@ -227,13 +285,13 @@ int main(void) {
 
 		//glActiveTexture(GL_TEXTURE0);
 		//glBindTexture(GL_TEXTURE_2D, diffuseMap);
-		te1.use(diffuseMap,0);
-		te2.use(specularMap,1);
+		te1.use(diffuseMap, 0);
+		te2.use(specularMap, 1);
 		//glActiveTexture(GL_TEXTURE1);
 		//glBindTexture(GL_TEXTURE_2D, specularMap);
 
 		glBindVertexArray(cubeVAO);
-		
+
 		for (unsigned int i = 0; i < 10; i++)
 		{
 			glm::mat4 model1 = glm::mat4(1.0f);
@@ -243,7 +301,7 @@ int main(void) {
 			colorShader.SetMat4("model", model1);
 
 			glDrawArrays(GL_TRIANGLES, 0, 36);
-		}				
+		}
 
 		lightShader.use();
 		lightShader.SetMat4("view", view1);
@@ -251,13 +309,19 @@ int main(void) {
 		lightShader.SetVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
 		//lightShader.SetVec3("objectColor", 1.0, 1.0, 1.0);
 
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, lightPos);
-		model = glm::scale(model, glm::vec3(0.2f));
-		lightShader.SetMat4("model", model);
+		
 		glBindVertexArray(LightVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glm::mat4 model = glm::mat4(1.0f);
+		for (int i = 0; i < 4; i++)
+		{			
+			model = glm::mat4(1.0f);
+			model = glm::translate(model, pointLightPositions[i]);
+			model = glm::scale(model, glm::vec3(0.2f));
+			lightShader.SetMat4("model", model);
+			lightShader.setVec3("lightColor", pointLightColors[i]);
+
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}		
 
 		bool enable = (glfwGetKey(windowTr, GLFW_KEY_SPACE) == GLFW_PRESS);
 		if (enable || isFirstEnter) {
@@ -384,4 +448,3 @@ void DrawGUI(GLFWwindow* window) {
 	my.RenderGUI();
 }
 
-*/
