@@ -1,3 +1,4 @@
+/*
 #define STB_IMAGE_IMPLEMENTATION
 #include <iostream>
 #include <glad/glad.h>
@@ -447,4 +448,4 @@ void DrawGUI(GLFWwindow* window) {
 
 	my.RenderGUI();
 }
-
+*/

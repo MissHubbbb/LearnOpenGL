@@ -160,6 +160,7 @@
     <ClCompile Include="ObjectPractice.cpp" />
     <ClCompile Include="streamfilePrac.cpp" />
     <ClCompile Include="test.cpp" />
+    <ClCompile Include="test_assimp.cpp" />
     <ClCompile Include="test_imgui.cpp" />
     <ClCompile Include="Transformation.cpp" />
   </ItemGroup>
