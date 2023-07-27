@@ -38,9 +38,18 @@ public:
 	float MouseSensitivity;	//鼠标灵敏度
 	float Zoom;		//fov	
 
-	Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM){
+	//后面新加的
+	Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f)) {
 		Position = position;
-		WorldUp = up;
+		WorldUp = glm::vec3(0.0f, 1.0f, 0.0f);
+		Yaw = YAW;
+		Pitch = PITCH;
+		updateCameraVectors();
+	}
+
+	Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM){
+		Position = position;
+		WorldUp = worldUp;
 		Yaw = yaw;
 		Pitch = pitch;
 		updateCameraVectors();
@@ -53,6 +62,15 @@ public:
 		Pitch = pitch;
 		updateCameraVectors();
 	}	
+
+	Camera(glm::vec3 position = glm::vec3(0, 0, 3.0f), glm::vec3 target = glm::vec3(0,0,-1.0f), glm::vec3 worldUp = glm::vec3(0, 1.0f, 0))
+	{
+		Position = position;
+		WorldUp = worldUp;
+		Front = glm::normalize(-(target - position));	//摄像机看向的是和世界相反的方向
+		Right = glm::normalize(glm::cross(WorldUp, Front));
+		Up = glm::cross(Front, Right);
+	}
 
 	//得到视图矩阵
 	glm::mat4 GetViewMatrix() {

@@ -1,3 +1,4 @@
+/*
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -112,11 +113,7 @@ int main1(void)
     //注册窗口调整回调函数，告诉GLFW我们希望每当窗口调整大小的时候调用这个函数
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-   /* float vertices[] = {
-        -0.5f,-0.5f,0.0f,
-        0.5f,-0.5f,0.0f,
-        0.0f,0.5f,0.0f
-    };*/
+ 
 
     //float vertices[] = {
     //    // 第一个三角形
@@ -242,3 +239,4 @@ void processInput(GLFWwindow* window) {
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
+*/

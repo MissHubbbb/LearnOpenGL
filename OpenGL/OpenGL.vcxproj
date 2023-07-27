@@ -145,6 +145,8 @@
     <ClCompile Include="..\..\..\..\OpenGL_Lib\glad.c" />
     <ClCompile Include="Assimp_3_ModelAndMesh.cpp" />
     <ClCompile Include="entry_6_texture.cpp" />
+    <ClCompile Include="HighLevelLight_1_DepthTesting.cpp" />
+    <ClCompile Include="HighLevelLight_2_StencilTesting.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />

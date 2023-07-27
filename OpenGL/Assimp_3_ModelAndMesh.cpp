@@ -1,3 +1,4 @@
+/*
 #define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -9,6 +10,10 @@
 #include "Shader.h"
 #include "Camera.h"
 #include "Model.h"
+
+#include "LightDirection.h"
+#include "LightPoint.h"
+#include "LightSpot.h"
 
 #include <iostream>
 
@@ -22,7 +27,15 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+//Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+#pragma region CameraCreate
+glm::vec3 cameraPos = glm::vec3(0, 0, 3.0f);
+glm::vec3 cameraTarget = glm::vec3(0, 0, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0, 1.0f, 0);
+Camera camera(cameraPos, cameraTarget, cameraUp);
+#pragma endregion
+
+
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -83,6 +96,16 @@ int main()
     // load models
     // -----------
     Model ourModel("Obj/Nanosuit/nanosuit.obj");
+
+
+
+#pragma region LightPart
+    LightDirection lightDir(glm::vec3(135.0f, 0, 0), glm::vec3(0.5f, 0.5f, 0.5f));
+    LightPoint lightPoint1(glm::vec3(1.0f, 0, 0), glm::vec3(0.2f, 0.4f, 0.6f));
+    LightPoint lightPoint2(glm::vec3(0, 1.0f, 0), glm::vec3(0.5f, 0.8f, 0.3f));
+    //LightSpot lightSpot(camera.Position,)
+        //TODO:µÆ¹â²¿·Ö
+#pragma endregion
 
 
     // draw in wireframe
@@ -191,3 +214,4 @@ void scroll_callbackTR(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
+*/

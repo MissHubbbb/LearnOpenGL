@@ -1,0 +1,20 @@
+#version 330 core
+out vec4 FragColor;
+
+float near = 0.1;
+float far = 100.0;
+
+float LinearizeDepth(float depth){
+    float z = depth * 2.0 - 1.0;	//回到NDC——[-1,1]
+    float linearDepth = (2.0 * near * far) / (far + near - z * (far - near));
+    return linearDepth;
+}
+
+void main()
+{    
+    //FragColor = texture(texture1, TexCoords);
+    //本来线性深度在near和far之间，除以far将其近似转成[0,1]
+    //gl_FragCoord是个vec4(x,y,z,1/w)变量。x和y表示当前片元的窗口坐标，z表示当前片元的非线性深度
+    float linearDepth = LinearizeDepth(gl_FragCoord.z) / far;	
+    FragColor = vec4(vec3(linearDepth), 1.0);
+}
