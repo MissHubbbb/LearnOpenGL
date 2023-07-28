@@ -26,7 +26,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 // camera
-Camera camera(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
+Camera camera(glm::vec3(0.0,0.0,3.0), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
 float lastX = (float)SCR_WIDTH / 2.0;
 float lastY = (float)SCR_HEIGHT / 2.0;
 bool firstMouse = true;
@@ -73,16 +73,16 @@ int main()
         return -1;
     }
 
-    // configure global opengl state 开启模板测试
+    // configure global opengl state 开启深度测试，并让所有片元测试都通过
     // -----------------------------
-    glEnable(GL_STENCIL_TEST);
+    glEnable(GL_DEPTH_TEST);
     //glDepthFunc(GL_ALWAYS); // always pass the depth test (same effect as glDisable(GL_DEPTH_TEST))
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    glDepthFunc(GL_LESS);
 
     // build and compile shaders
     // -------------------------
-    Shader shader("HL_Light_depth_testing.vs.txt", "HL_Light_depth_testing.fs.txt");
-    Shader ShaderSingleColor("HL_Light_2_StencilTesting.vs.txt", "HL_Light_2_StencilTesting.fs.txt");
+    Shader shader("HighLevelLight_3_Blend.vs.txt", "HighLevelLight_3_Blend.fs.txt");
+    //Shader shader("HL_Light_depth_testing.vs.txt", "HL_Light_depth_testing_linearDepth.fs.txt");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -140,6 +140,19 @@ int main()
         -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
          5.0f, -0.5f, -5.0f,  2.0f, 2.0f
     };
+
+    //grass quad
+    float transparentVertices[] = {
+        // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
+        0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
+        0.0f, -0.5f,  0.0f,  0.0f,  1.0f,
+        1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+
+        0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
+        1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+        1.0f,  0.5f,  0.0f,  1.0f,  0.0f
+    };
+
     // cube VAO 方块的VAO
     unsigned int cubeVAO, cubeVBO;
     glGenVertexArrays(1, &cubeVAO);
@@ -164,11 +177,31 @@ int main()
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
+    // grass quad VAO  草片的VAO
+    unsigned int grassVAO, grassVBO;
+    glGenVertexArrays(1, &grassVAO);
+    glGenBuffers(1, &grassVBO);
+    glBindVertexArray(grassVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, grassVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(transparentVertices), &transparentVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,  5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 
     // load textures
     // -------------
     unsigned int cubeTexture = loadTexture("marble.jpg");
     unsigned int floorTexture = loadTexture("metal.jpg");
+    unsigned int grassTexture = loadTexture("grass.png");
+
+    // vegatation 各个草片的位置
+    vector<glm::vec3> vegetation;
+    vegetation.push_back(glm::vec3(-1.5f, 0.0f, -0.48f));
+    vegetation.push_back(glm::vec3(1.5f, 0.0f, 0.51f));
+    vegetation.push_back(glm::vec3(0.0f, 0.0f, 0.7f));
+    vegetation.push_back(glm::vec3(-0.3f, 0.0f, -2.3f));
+    vegetation.push_back(glm::vec3(0.5f, 0.0f, -0.6f));
 
     // shader configuration
     // --------------------
@@ -190,71 +223,44 @@ int main()
         processInput(window);
 
         // render
-        glEnable(GL_DEPTH_TEST);
         // ------
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        ShaderSingleColor.use();
+        shader.use();
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        ShaderSingleColor.SetMat4("view", view);
-        ShaderSingleColor.SetMat4("projection", projection);
-
-        shader.use();        
         shader.SetMat4("view", view);
         shader.SetMat4("projection", projection);
-
-        //绘制地板
-        glStencilMask(0x00);    //禁用模板写入
-        // 开始绘制
+        // cubes
+        glBindVertexArray(cubeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, cubeTexture);
+        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+        shader.SetMat4("model", model);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
+        shader.SetMat4("model", model);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // floor
         glBindVertexArray(planeVAO);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
         shader.SetMat4("model", glm::mat4(1.0f));
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
+        // grass
+        glBindVertexArray(grassVAO);
+        glBindTexture(GL_TEXTURE_2D, grassTexture);
+        for (int i = 0; i < vegetation.size(); i++) {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, vegetation[i]);
+            shader.SetMat4("model", model);
+            glDrawArrays(GL_TRIANGLES, 0, 6);            
+        }
+        glBindVertexArray(0);
 
-        //绘制两个正常大小的箱子
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);  //所有的片段都更新模板缓冲，更新为1
-        glStencilMask(0xFF);        //启用模板缓冲，0xFF会与要写入模板缓冲的值进行与(AND)运算，0xFF会让每一位写入模板缓冲是都保持原样        
-        glBindVertexArray(cubeVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, cubeTexture);
-        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
-        shader.SetMat4("model", model);
-        glDrawArrays(GL_TRIANGLES, 0, 36);          //画第一个箱子
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
-        shader.SetMat4("model", model);
-        glDrawArrays(GL_TRIANGLES, 0, 36);          //画第二个箱子
-
-        //绘制两个放大了的箱子
-        //将模板函数设置为GL_NOTEQUAL，保证我们只绘制箱子上模板值不为1的部分。因为我们现在绘制的两个箱子放大了，原箱子部分为1，绘制的只有放大部分的。
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);    
-        glStencilMask(0x00);    //禁用模板缓冲写入
-        glDisable(GL_DEPTH_TEST);     //禁用深度测试
-        ShaderSingleColor.use();
-        float scale = 1.1f;          //放大的倍数                
-        // two cubes
-        glBindVertexArray(cubeVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, cubeTexture);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
-        model = glm::scale(model, glm::vec3(scale, scale, scale));
-        ShaderSingleColor.SetMat4("model", model);      //画第一个大箱子
-        glDrawArrays(GL_TRIANGLES, 0, 36);     
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(scale, scale, scale));
-        ShaderSingleColor.SetMat4("model", model);  
-        glDrawArrays(GL_TRIANGLES, 0, 36);                  //画第二个大箱子
-
-        glStencilMask(0xFF);        //开启模板缓冲写入
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        glEnable(GL_DEPTH_TEST);    //开启深度测试
-       
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -293,7 +299,7 @@ void processInput(GLFWwindow* window)
 // ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-    // make sure the viewport matches the new window dimensions; note that width and 
+    // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
 }
@@ -351,8 +357,9 @@ unsigned int loadTexture(char const* path)
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        //format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT 如果贴图是rgba，并且我们要使用a通道的时候，需要将模式换为GL_CLAMP_TO_EDGE，否则repeat模式会导致我们在采样边缘的时候可能会和上一张重复贴图的底面在插值的时候得到一个半透明边框(如草地图片上部是黑色，下部是绿色)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -366,5 +373,4 @@ unsigned int loadTexture(char const* path)
 
     return textureID;
 }
-
 */
