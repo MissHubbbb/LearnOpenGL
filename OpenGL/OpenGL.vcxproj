@@ -149,6 +149,8 @@
     <ClCompile Include="HighLevelLight_2_StencilTesting.cpp" />
     <ClCompile Include="HighLevelLight_3_Blend_Blend.cpp" />
     <ClCompile Include="HighLevelLight_3_Blend_Discard.cpp" />
+    <ClCompile Include="HighLevelLight_4_FaceCull.cpp" />
+    <ClCompile Include="HighLevelLight_5_FrameBuffer.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />
