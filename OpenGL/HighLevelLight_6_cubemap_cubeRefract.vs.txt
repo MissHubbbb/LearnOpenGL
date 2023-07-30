@@ -1,0 +1,23 @@
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+layout(Location = 2) in vec2 aTexCoords;
+
+out vec3 Normal;
+out vec3 Position;
+out vec2 TexCoords;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+void main()
+{
+    //因为我们是要根据观察方向来设置反射方向，且我们想要在世界空间中进行计算，所以将模型空间的法线转换到世界空间中，使用模型矩阵而不是模型视图矩阵
+    //总结来说就是将法线从模型空间转换到世界空间中
+    Normal = mat3(transpose(inverse(model))) * aNormal;
+    //将顶点坐标从模型空间转换到世界空间
+    Position = vec3(model * vec4(aPos, 1.0));
+    TexCoords = aTexCoords;	
+    gl_Position = projection * view * model * vec4(aPos, 1.0);
+}

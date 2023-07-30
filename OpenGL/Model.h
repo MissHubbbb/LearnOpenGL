@@ -60,8 +60,8 @@ private:
 			std::cout << "ERROR::Assimp::" << importer.GetErrorString() << std::endl;
 			return;
 		}
-
-		directory = path.substr(0, path.find_last_of('/'));
+		
+		directory = path.substr(0, path.find_last_of('\\'));
 
 		//传入第一个节点
 		ProcessNode(scene->mRootNode, scene);
@@ -144,6 +144,7 @@ private:
 		}
 
 		//材质
+		if (mesh->mMaterialIndex >= 0) {
 			aiMaterial* mat = scene->mMaterials[mesh->mMaterialIndex];
 			vector<Texture> diffuseMaps = LoadMaterialTextures(mat, aiTextureType_DIFFUSE, "texture_diffuse");	//获取漫反射贴图数组
 			textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());	//将数组插入到贴图数组中
@@ -153,7 +154,7 @@ private:
 			textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 			vector<Texture> heightMaps = LoadMaterialTextures(mat, aiTextureType_AMBIENT, "texture_height");		//高度图
 			textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
-		
+		}
 		return Mesh(vertices, indices, textures);
 	}
 
@@ -163,7 +164,7 @@ private:
 		for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
 		{
 			aiString str;
-			mat->GetTexture(type, i, &str);	//获取每一个纹理的文件位置
+			mat->GetTexture(type, i, &str);	//获取每一个纹理的文件位置			
 			bool isSkip = false;
 
 			for (unsigned int j = 0; j < texture_loaded.size(); j++)

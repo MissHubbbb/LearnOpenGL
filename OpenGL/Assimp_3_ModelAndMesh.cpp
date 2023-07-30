@@ -29,10 +29,11 @@ const unsigned int SCR_HEIGHT = 600;
 // camera
 //Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 #pragma region CameraCreate
-glm::vec3 cameraPos = glm::vec3(0, 0, 3.0f);
+glm::vec3 cameraPos = glm::vec3(0, 10, 10.0f);
 glm::vec3 cameraTarget = glm::vec3(0, 0, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0, 1.0f, 0);
-Camera camera(cameraPos, cameraTarget, cameraUp);
+//Camera camera(cameraPos, cameraTarget, cameraUp);
+Camera camera(cameraPos);
 #pragma endregion
 
 
@@ -95,18 +96,7 @@ int main()
 
     // load models
     // -----------
-    Model ourModel("Obj/Nanosuit/nanosuit.obj");
-
-
-
-#pragma region LightPart
-    LightDirection lightDir(glm::vec3(135.0f, 0, 0), glm::vec3(0.5f, 0.5f, 0.5f));
-    LightPoint lightPoint1(glm::vec3(1.0f, 0, 0), glm::vec3(0.2f, 0.4f, 0.6f));
-    LightPoint lightPoint2(glm::vec3(0, 1.0f, 0), glm::vec3(0.5f, 0.8f, 0.3f));
-    //LightSpot lightSpot(camera.Position,)
-        //TODO:µÆ¹â²¿·Ö
-#pragma endregion
-
+    Model ourModel(".\\Obj\\Nanosuit\\nanosuit.obj");
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

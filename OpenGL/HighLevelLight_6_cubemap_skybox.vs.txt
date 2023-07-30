@@ -1,0 +1,16 @@
+#version 330 core
+layout (location = 0) in vec3 aPos;
+
+out vec3 TexCoords;
+
+uniform mat4 projection;
+uniform mat4 view;
+
+void main()
+{
+    TexCoords = aPos;
+    //将输入的立方体贴图位置向量作为输出，给片段着色器的纹理坐标
+    vec4 pos = projection * view * vec4(aPos, 1.0);
+    //因为透视除法在顶点着色器之后进行，因为相除结果z分量等于深度值，为了让skybox的深度值最大，将顶点着色器阶段的z分量设置为与w分量一样，这样z/w=1.0，深度值就会始终为1，深度值最大
+    gl_Position = pos.xyww;
+}
