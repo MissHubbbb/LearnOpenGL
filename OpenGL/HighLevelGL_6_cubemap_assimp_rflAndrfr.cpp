@@ -1,3 +1,4 @@
+/*
 #define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -365,3 +366,4 @@ unsigned int loadCubemap(vector<std::string> faces) {
     //返回创建好的立方体贴图ID
     return textureID;
 }
+*/

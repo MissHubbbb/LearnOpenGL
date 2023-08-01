@@ -84,28 +84,31 @@
     <ClCompile Include="Assimp_3_ModelAndMesh.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HighLevelLight_1_DepthTesting.cpp">
+    <ClCompile Include="HighLevelGL_1_DepthTesting.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HighLevelLight_2_StencilTesting.cpp">
+    <ClCompile Include="HighLevelGL_2_StencilTesting.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HighLevelLight_3_Blend_Discard.cpp">
+    <ClCompile Include="HighLevelGL_3_Blend_Discard.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HighLevelLight_3_Blend_Blend.cpp">
+    <ClCompile Include="HighLevelGL_3_Blend_Blend.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HighLevelLight_4_FaceCull.cpp">
+    <ClCompile Include="HighLevelGL_4_FaceCull.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HighLevelLight_5_FrameBuffer.cpp">
+    <ClCompile Include="HighLevelGL_5_FrameBuffer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HighLevelLight_6_cubemap.cpp">
+    <ClCompile Include="HighLevelGL_6_cubemap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HighLevelLight_6_cubemap_assimp_rflAndrfr.cpp">
+    <ClCompile Include="HighLevelGL_6_cubemap_assimp_rflAndrfr.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="HighLevelGL_7_HighLevelGLSL.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
