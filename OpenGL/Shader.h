@@ -97,6 +97,85 @@ public:
 		glDeleteShader(vertexShaderS);
 		glDeleteShader(fragmentShaderS);
 	}
+
+	Shader(const char* vertexPath, const char* geometryPath, const char* fragPath) {
+		std::string vertexCode;
+		std::string geometryCode;
+		std::string fragmentCode;
+
+		std::ifstream vShderFile;
+		std::ifstream gShaderFile;
+		std::ifstream fShaderFile;
+
+		vShderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+		gShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+		fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+		try {
+			//打开文件
+			vShderFile.open(vertexPath);
+			gShaderFile.open(geometryPath);
+			fShaderFile.open(fragPath);
+
+			//读取文件流
+			std::stringstream vShaderString, gShaderString ,fShaderString;
+			vShaderString << vShderFile.rdbuf();
+			gShaderString << gShaderFile.rdbuf();
+			fShaderString << fShaderFile.rdbuf();
+
+			//关闭文件
+			vShderFile.close();
+			gShaderFile.close();
+			fShaderFile.close();
+
+			//将文件流转化为string
+			vertexCode = vShaderString.str();
+			geometryCode = gShaderString.str();
+			fragmentCode = fShaderString.str();
+
+			//std::cout << vertexCode << std::endl;
+		}
+		catch (std::ifstream::failure e) {
+			std::cout << "Failed to read file stream" << e.what() << std::endl;
+		}
+
+		//通过string类的c_str()函数能够把string对象转换成c语言中的char字符串的样式
+		const char* vertexShaderCode = vertexCode.c_str();
+		const char* geometryShaderCode = geometryCode.c_str();
+		const char* fragmentShaderCode = fragmentCode.c_str();
+
+		/*std::cout << vertexShaderCode << std::endl;
+		std::cout << fragmentShaderCode << std::endl;*/
+
+		unsigned int vertexShaderS, geometryShaderS, fragmentShaderS;
+		vertexShaderS = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vertexShaderS, 1, &vertexShaderCode, NULL);
+		glCompileShader(vertexShaderS);
+		checkCompileErrors(vertexShaderS, "VERTEX");
+
+		geometryShaderS = glCreateShader(GL_GEOMETRY_SHADER);
+		glShaderSource(geometryShaderS, 1, &geometryShaderCode, NULL);
+		glCompileShader(geometryShaderS);
+		checkCompileErrors(geometryShaderS, "GEOMETRY");
+
+		fragmentShaderS = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragmentShaderS, 1, &fragmentShaderCode, NULL);
+		glCompileShader(fragmentShaderS);
+		checkCompileErrors(fragmentShaderS, "FRAGMENT");
+
+		//创建着色器程序
+		ID = glCreateProgram();
+		glAttachShader(ID, vertexShaderS);				
+		glAttachShader(ID, geometryShaderS);
+		glAttachShader(ID, fragmentShaderS);
+		glLinkProgram(ID);
+		checkCompileErrors(ID, "PROGRAM");
+
+		//在着色器程序创建并编译成功后，删除之前创建的着色器
+		glDeleteShader(vertexShaderS);
+		glDeleteShader(geometryShaderS);
+		glDeleteShader(fragmentShaderS);
+	}
 	//使用程序
 	void use() {
 		glUseProgram(ID);
@@ -132,6 +211,31 @@ public:
 
 	void deleteProgram() {
 		glDeleteProgram(ID);
+	}
+
+private:
+	void checkCompileErrors(GLuint shader, std::string type)
+	{
+		GLint success;
+		GLchar infoLog[1024];
+		if (type != "PROGRAM")
+		{
+			glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+			if (!success)
+			{
+				glGetShaderInfoLog(shader, 1024, NULL, infoLog);
+				std::cout << "ERROR::SHADER_COMPILATION_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+			}
+		}
+		else
+		{
+			glGetProgramiv(shader, GL_LINK_STATUS, &success);
+			if (!success)
+			{
+				glGetProgramInfoLog(shader, 1024, NULL, infoLog);
+				std::cout << "ERROR::PROGRAM_LINKING_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
+			}
+		}
 	}
 };
 

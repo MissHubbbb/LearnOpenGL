@@ -79,12 +79,12 @@ int main()
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
     //glDepthFunc(GL_ALWAYS); // always pass the depth test (same effect as glDisable(GL_DEPTH_TEST))
-   
+
     // build and compile shaders
     // -------------------------
     Shader skyboxShader("HighLevelLight_6_cubemap_skybox.vs.txt", "HighLevelLight_6_cubemap_skybox.fs.txt");
     //Shader assimpShader("HighLevelLight_6_cubemap_cubeReflect.vs.txt", "HighLevelLight_6_cubemap_cubeReflect.fs.txt");
-    Shader assimpShader("HighLevelLight_6_cubemap_cubeRefract.vs.txt", "HighLevelLight_6_cubemap_cubeRefract.fs.txt");
+    Shader assimpShader("HighLevelLight_6_cubemap_cubeRefract.vs.txt", "HighLevelGL_8_GeometryShader_explode.gs.txt", "HighLevelLight_6_cubemap_cubeRefract.fs.txt");
 
     // load models
     // -----------
@@ -169,7 +169,7 @@ int main()
     assimpShader.use();
     assimpShader.SetInt("texture_diffuse1", 0);
     assimpShader.SetInt("skybox", 1);
-    
+
 
     // render loop
     // -----------
@@ -192,10 +192,11 @@ int main()
 
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 view = camera.GetViewMatrix();
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);   
-        
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+
         // model
         assimpShader.use();
+        assimpShader.SetFloat("time", glfwGetTime());
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
         assimpShader.SetMat4("view", view);
@@ -205,7 +206,7 @@ int main()
         glm::mat4 model1 = glm::mat4(1.0f);
         model1 = glm::translate(model1, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
         model1 = glm::scale(model1, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-        assimpShader.SetMat4("model", model1);        
+        assimpShader.SetMat4("model", model1);
         assimpModel.Draw(assimpShader);
 
         //ªÊ÷∆skybox

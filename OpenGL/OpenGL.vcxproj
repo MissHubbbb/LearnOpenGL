@@ -145,6 +145,7 @@
     <ClCompile Include="..\..\..\..\OpenGL_Lib\glad.c" />
     <ClCompile Include="Assimp_3_ModelAndMesh.cpp" />
     <ClCompile Include="entry_6_texture.cpp" />
+    <ClCompile Include="HighLevelGL_8_GeometryShader.cpp" />
     <ClCompile Include="HighLevelGL_7_HighLevelGLSL.cpp" />
     <ClCompile Include="HighLevelGL_1_DepthTesting.cpp" />
     <ClCompile Include="HighLevelGL_2_StencilTesting.cpp" />
@@ -154,6 +155,8 @@
     <ClCompile Include="HighLevelGL_5_FrameBuffer.cpp" />
     <ClCompile Include="HighLevelGL_6_cubemap.cpp" />
     <ClCompile Include="HighLevelGL_6_cubemap_assimp_rflAndrfr.cpp" />
+    <ClCompile Include="HighLevelGL_8_GeometryShader_Explode.cpp" />
+    <ClCompile Include="HighLevelGL_8_GeometryShader_NormalVisualize.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />

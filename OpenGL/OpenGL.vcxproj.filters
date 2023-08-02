@@ -111,6 +111,15 @@
     <ClCompile Include="HighLevelGL_7_HighLevelGLSL.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="HighLevelGL_8_GeometryShader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="HighLevelGL_8_GeometryShader_Explode.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="HighLevelGL_8_GeometryShader_NormalVisualize.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Shader.h">
