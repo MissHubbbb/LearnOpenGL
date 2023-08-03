@@ -27,11 +27,14 @@ using namespace std;
 
 unsigned int TextureFromFile(const char* path, const string& directory, bool gamma = false);
 
-//用来存储我们已经加载过的贴图，要是后面有重复使用的情况就不需要重新加载
-vector<Texture> texture_loaded;
-
 class Model {
 public:
+	//模型数据
+	vector<Mesh> meshes;
+	string directory;
+	//用来存储我们已经加载过的贴图，要是后面有重复使用的情况就不需要重新加载
+	vector<Texture> texture_loaded;
+
 	//函数
 	Model(string const& path) {
 		LoadModel(path);
@@ -45,9 +48,6 @@ public:
 	}
 
 private:
-	//模型数据
-	vector<Mesh> meshes;
-	string directory;
 
 	//函数
 	//加载模型

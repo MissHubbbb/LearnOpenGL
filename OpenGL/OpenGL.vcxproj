@@ -157,6 +157,10 @@
     <ClCompile Include="HighLevelGL_6_cubemap_assimp_rflAndrfr.cpp" />
     <ClCompile Include="HighLevelGL_8_GeometryShader_Explode.cpp" />
     <ClCompile Include="HighLevelGL_8_GeometryShader_NormalVisualize.cpp" />
+    <ClCompile Include="HighLevelGL_9_Instantiation.cpp" />
+    <ClCompile Include="HighLevelGL_9_Instantiation_InstancedArray.cpp" />
+    <ClCompile Include="HighLevelGL_9_Instantiation_Planet.cpp" />
+    <ClCompile Include="HighLevelGL_9_Instantiation_Planet_Instance.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />

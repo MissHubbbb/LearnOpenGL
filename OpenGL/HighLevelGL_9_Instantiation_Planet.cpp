@@ -11,10 +11,6 @@
 #include "Camera.h"
 #include "Model.h"
 
-#include "LightDirection.h"
-#include "LightPoint.h"
-#include "LightSpot.h"
-
 #include <iostream>
 
 void framebuffer_size_callbackTR(GLFWwindow* window, int width, int height);
@@ -29,9 +25,7 @@ const unsigned int SCR_HEIGHT = 600;
 // camera
 //Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 #pragma region CameraCreate
-glm::vec3 cameraPos = glm::vec3(0, 10, 10.0f);
-glm::vec3 cameraTarget = glm::vec3(0, 0, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0, 1.0f, 0);
+glm::vec3 cameraPos = glm::vec3(0, 0, 55.0f);
 //Camera camera(cameraPos, cameraTarget, cameraUp);
 Camera camera(cameraPos);
 #pragma endregion
@@ -93,11 +87,43 @@ int main()
     // build and compile shaders
     // -------------------------
     Shader ourShader("1.model_loading.vs.txt", "1.model_loading.fs.txt");
-    Shader NormalShader("HighLevelGL_8_GeometryShader_NormalVisualize.vs.txt", "HighLevelGL_8_GeometryShader_NormalVisualize.gs.txt", "HighLevelGL_8_GeometryShader_NormalVisualize.fs.txt");
 
     // load models
     // -----------
-    Model ourModel(".\\Obj\\Nanosuit\\nanosuit.obj");
+    Model planetModel(".\\Obj\\planet\\planet.obj");
+    Model rockModel(".\\Obj\\rock\\rock.obj");
+
+    //设置每个小行星的模型矩阵
+    unsigned int amount = 1000;
+    glm::mat4* modelMatrices;
+    modelMatrices = new glm::mat4[amount];
+    srand(static_cast<unsigned int>(glfwGetTime())); // 初始化随机种子    
+    float radius = 50.0;
+    float offset = 2.5f;
+    for (unsigned int i = 0; i < amount; i++)
+    {
+        glm::mat4 model = glm::mat4(1.0);
+        // 1. 位移：分布在半径为 'radius' 的圆形上，偏移的范围是 [-offset, offset]
+        float angle = (float)i / (float)amount * 360.0f;
+        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float x = sin(angle) * radius + displacement;
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float y = displacement * 0.4f; // 让行星带的高度比x和z的宽度要小
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float z = cos(angle) * radius + displacement;
+        model = glm::translate(model, glm::vec3(x, y, z));
+
+        // 2. 缩放：在 0.05 和 0.25f 之间缩放
+        float scale = (rand() % 20) / 100.0f + 0.05;
+        model = glm::scale(model, glm::vec3(scale));
+
+        // 3. 旋转：绕着一个（半）随机选择的旋转轴向量进行随机的旋转
+        float rotAngle = (rand() % 360);
+        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+
+        // 4. 添加到矩阵的数组中
+        modelMatrices[i] = model;
+    }
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -124,26 +150,26 @@ int main()
         // don't forget to enable shader before setting uniforms
         ourShader.use();
 
-        // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
+        // configure transformation matrices
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+        glm::mat4 view = camera.GetViewMatrix();;
+        ourShader.use();
         ourShader.SetMat4("projection", projection);
         ourShader.SetMat4("view", view);
 
-        // render the loaded model
+        // draw planet
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+        model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(4.0f, 4.0f, 4.0f));
         ourShader.SetMat4("model", model);
-        ourModel.Draw(ourShader);
+        planetModel.Draw(ourShader);
 
-        NormalShader.use();
-        NormalShader.SetMat4("view", view);
-        NormalShader.SetMat4("projection", projection);
-        model = glm::mat4(1.0f);
-        NormalShader.SetMat4("model", model);
-        ourModel.Draw(NormalShader);
-
+        // draw meteorites
+        for (unsigned int i = 0; i < amount; i++)
+        {
+            ourShader.SetMat4("model", modelMatrices[i]);
+            rockModel.Draw(ourShader);
+        }
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -212,5 +238,4 @@ void scroll_callbackTR(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
-
 */

@@ -41,6 +41,8 @@ public:
 	vector<Vertex> vertices;
 	vector<unsigned int> indices;
 	vector<Texture> textures;
+	//渲染数据
+	unsigned int VBO, VAO, EBO;
 
 	//函数，绘制网格
 	Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures) {
@@ -93,8 +95,7 @@ public:
 	}
 
 private:
-	//渲染数据
-	unsigned int VBO, VAO, EBO;
+	
 	//函数，初始化缓冲的函数
 	void SetupMesh() {
 		glGenVertexArrays(1, &VAO);

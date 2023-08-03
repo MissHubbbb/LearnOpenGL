@@ -120,6 +120,18 @@
     <ClCompile Include="HighLevelGL_8_GeometryShader_NormalVisualize.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="HighLevelGL_9_Instantiation.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="HighLevelGL_9_Instantiation_InstancedArray.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="HighLevelGL_9_Instantiation_Planet.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="HighLevelGL_9_Instantiation_Planet_Instance.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Shader.h">
