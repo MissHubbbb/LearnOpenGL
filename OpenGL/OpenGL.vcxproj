@@ -116,13 +116,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\LearnOpenGL\Project\OpenGL\OpenGL\Assimp\include;D:\LearnOpenGL\Project\OpenGL\OpenGL\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\LearnOpenGL\Project\OpenGL\OpenGL\glew-2.1.0\include;D:\LearnOpenGL\Project\OpenGL\OpenGL\Assimp\include;D:\LearnOpenGL\Project\OpenGL\OpenGL\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;opengl32.lib;assimp-vc142-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\LearnOpenGL\Project\OpenGL\OpenGL\Assimp\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\LearnOpenGL\Project\OpenGL\OpenGL\glew-2.1.0\bin;D:\LearnOpenGL\Project\OpenGL\OpenGL\Assimp\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -145,6 +145,8 @@
     <ClCompile Include="..\..\..\..\OpenGL_Lib\glad.c" />
     <ClCompile Include="Assimp_3_ModelAndMesh.cpp" />
     <ClCompile Include="entry_6_texture.cpp" />
+    <ClCompile Include="HighLevelGL_10_AntiAliasing.cpp" />
+    <ClCompile Include="HighLevelGL_10_AntiAliasing_FrameBuffer.cpp" />
     <ClCompile Include="HighLevelGL_8_GeometryShader.cpp" />
     <ClCompile Include="HighLevelGL_7_HighLevelGLSL.cpp" />
     <ClCompile Include="HighLevelGL_1_DepthTesting.cpp" />

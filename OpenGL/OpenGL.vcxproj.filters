@@ -132,6 +132,12 @@
     <ClCompile Include="HighLevelGL_9_Instantiation_Planet_Instance.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="HighLevelGL_10_AntiAliasing.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="HighLevelGL_10_AntiAliasing_FrameBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Shader.h">
