@@ -1,3 +1,4 @@
+//将深度贴图渲染到四边形(quad)上的片段着色器
 #version 330 core
 out vec4 FragColor;
 
