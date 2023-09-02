@@ -6,6 +6,7 @@ float far = 100.0;
 
 float LinearizeDepth(float depth){
     float z = depth * 2.0 - 1.0;	//回到NDC——[-1,1]
+    //这个方程是用投影矩阵推导得出的，它使用了方程2来非线性化深度值，返回一个near与far之间的深度值。教程网址：http://www.songho.ca/opengl/gl_projectionmatrix.html
     float linearDepth = (2.0 * near * far) / (far + near - z * (far - near));
     return linearDepth;
 }
