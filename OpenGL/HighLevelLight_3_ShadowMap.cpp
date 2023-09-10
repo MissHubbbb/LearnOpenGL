@@ -171,6 +171,8 @@ int main()
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //使用正面剔除，防止产生阴影悬浮（根据背面的深度值来生成阴影贴图）
+        glCullFace(GL_FRONT);
 
         // 1. render depth of scene to texture (from light's perspective)，深度贴图是为了存储从光视角出发的最近深度点
         // --------------------------------------------------------------
@@ -195,6 +197,9 @@ int main()
         glBindTexture(GL_TEXTURE_2D, woodTexture);      //选择woodTexture作为当前纹理，后续对纹理的操作都将作用在此纹理上。
         renderScene(simpleDepthShader);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        //在生成深度贴图后，将正面剔除改为背面剔除
+        glCullFace(GL_BACK);
 
         // reset viewport
         glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
@@ -399,8 +404,10 @@ unsigned int generateDepthTexture() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    GLfloat borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
 
     return texture;
 }
