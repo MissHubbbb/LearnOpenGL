@@ -92,7 +92,9 @@ int main()
     //这个shader是把顶点变换到光空间(以光的透视图进行的场景渲染)
     Shader simpleDepthShader("HLL_3_simpleDepthShader.vs.txt", "HLL_3_simpleDepthShader.fs.txt");
     //这个shader是根据已经渲染好的深度纹理来采样深度值，并显示出来
-    Shader shader("HLL_3_DebugCube.vs.txt", "HLL_3_DebugCube.fs.txt");    
+    Shader debugDepthQuadShader("HLL_3_DebugQuad.vs.txt", "HLL_3_DebugQuad.fs.txt");    
+    //这个shader是为了渲染出阴影效果，使用Blinn-Phong着色模型
+    Shader shadowMapShader("HLL_3_shadowMapShader.vs.txt", "HLL_3_shadowMapShader.fs.txt");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -143,8 +145,11 @@ int main()
 
     // shader configuration
     // -----------------------
-    shader.use();
-    shader.SetInt("depthMap", 0);
+    shadowMapShader.use();
+    shadowMapShader.SetInt("diffuseTexture", 0);
+    shadowMapShader.SetInt("shadowMap", 1);
+    debugDepthQuadShader.use();
+    debugDepthQuadShader.SetInt("depthMap", 0);
 
     // lighting info
     // -------------
@@ -167,7 +172,7 @@ int main()
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // 1. render depth of scene to texture (from light's perspective)
+        // 1. render depth of scene to texture (from light's perspective)，深度贴图是为了存储从光视角出发的最近深度点
         // --------------------------------------------------------------
         // //第一个步骤中，我们从光的位置的视野下使用了不同的投影和视图矩阵来渲染的场景。
         //因为我们使用的是一个所有光线都平行的定向光。出于这个原因，我们将为光源使用正交投影矩阵，透视图将没有任何变形
@@ -202,12 +207,29 @@ int main()
         // glEnable(GL_DEPTH_TEST);        
 
          // Set transformation matrices
-        shader.use();
-        shader.SetFloat("near_plane", near_plane);
-        shader.SetFloat("far_plane", far_plane);
+        shadowMapShader.use();
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        shadowMapShader.SetMat4("projection", projection);
+        shadowMapShader.SetMat4("view", view);
+        // set light uniform
+        shadowMapShader.setVec3("viewPos", camera.Position);
+        shadowMapShader.setVec3("lightPos", lightPos);
+        shadowMapShader.SetMat4("ligthSpaceMatrix", lightSpaceMatrix);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, woodTexture);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        renderScene(shadowMapShader);
+
+        // render Depth map to quad for visual debugging
+        // ---------------------------------------------
+        debugDepthQuadShader.use();
+        debugDepthQuadShader.SetFloat("near_plane", near_plane);
+        debugDepthQuadShader.SetFloat("far_plane", far_plane);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, depthMap);
-        renderQuad();
+        //renderQuad();
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
