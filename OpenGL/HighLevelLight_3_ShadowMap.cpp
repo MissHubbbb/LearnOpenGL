@@ -94,7 +94,8 @@ int main()
     //这个shader是根据已经渲染好的深度纹理来采样深度值，并显示出来
     Shader debugDepthQuadShader("HLL_3_DebugQuad.vs.txt", "HLL_3_DebugQuad.fs.txt");    
     //这个shader是为了渲染出阴影效果，使用Blinn-Phong着色模型
-    Shader shadowMapShader("HLL_3_shadowMapShader.vs.txt", "HLL_3_shadowMapShader.fs.txt");
+    //Shader shadowMapShader("HLL_3_shadowMapShader.vs.txt", "HLL_3_shadowMapShader.fs.txt");
+    Shader shadowMapShader("HLL_3_shadowMap_PCFShader.vs.txt", "HLL_3_shadowMap_PCFShader.fs.txt");     //使用pcf来优化阴影
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
