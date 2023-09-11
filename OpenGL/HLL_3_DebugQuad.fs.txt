@@ -8,7 +8,7 @@ uniform sampler2D depthMap;
 uniform float near_plane;
 uniform float far_plane;
 
-// 当使用一个透视投影矩阵的时候需要用到
+// 当使用一个透视投影矩阵的时候需要用到，因为透视投影下，深度变成了非线性的深度值，它的大多数可辨范围都位于近平面附近。为了可以像使用正交投影一样合适地观察深度值，你必须先将非线性深度值转变为线性的
 float LinearizeDepth(float depth){
     float z = depth * 2.0 - 1.0;	//回到NDC
     return (2.0 * near_plane * far_plane) / (far_plane + near_plane - z * (far_plane - near_plane));
@@ -16,6 +16,6 @@ float LinearizeDepth(float depth){
 
 void main(){
     float depthValue = texture(depthMap, TexCoords).r;
-    // FragColor = vec4(vec3(LinearizeDepth(depthValue) / far_plane), 1.0); // perspective
+     //FragColor = vec4(vec3(LinearizeDepth(depthValue) / far_plane), 1.0); // perspective
     FragColor = vec4(vec3(depthValue), 1.0);   // orthographic
 }
