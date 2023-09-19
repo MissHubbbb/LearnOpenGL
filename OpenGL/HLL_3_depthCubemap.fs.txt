@@ -1,0 +1,17 @@
+//片元着色器，主要用来计算立方体深度贴图的深度值
+#version 330 core
+in vec4 FragPos;
+
+uniform vec3 lightPos;
+uniform float far_plane;
+
+void main(){
+    //获取片元到光源之间的距离
+    float lightDistance = length(FragPos.xyz - lightPos);
+
+    //通过除以远平面来将距离的范围映射到[0,1]之间
+    lightDistance = lightDistance / far_plane;
+
+    //将算出来距离当成深度
+    gl_FragDepth = lightDistance;
+}

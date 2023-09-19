@@ -147,6 +147,9 @@
     <ClCompile Include="HighLevelLight_3_ShadowMap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="HighLevelLight_3_PointShadows.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Shader.h">
