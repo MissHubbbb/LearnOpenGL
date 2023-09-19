@@ -114,10 +114,9 @@ int main()
     // create a depth cubemap
     unsigned int depthCubemap;
     depthCubemap = generateCubeMap();
-
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     //把我们把生成的深度立方体纹理作为帧缓冲的深度缓冲
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,GL_TEXTURE_CUBE_MAP, depthCubemap, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
     //还要记得调用glDrawBuffer和glReadBuffer：当生成一个深度立方体贴图时我们只关心深度值，所以我们必须显式告诉OpenGL这个帧缓冲对象不会渲染到一个颜色缓冲里。
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);    
@@ -132,7 +131,7 @@ int main()
     // lighting info
     // -------------
     //如果光源是定向光，并且要渲染shadow map的话：定向光并没有位置，因为它被规定为无穷远。然而，为了实现阴影贴图，我们得从一个光的透视图渲染场景，这样就得在光的方向的某一点上渲染场景。
-    glm::vec3 lightPos(-2.0f, 4.0f, -1.0f);
+    glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
 
     // render loop
     // -----------
@@ -148,6 +147,9 @@ int main()
         // -----
         processInput(window);
 
+        // move light position over time
+        lightPos.z = static_cast<float>(sin(glfwGetTime() * 0.5) * 0.3);
+
         // 1. render depth of scene to texture (from light's perspective)，深度贴图是为了存储从光视角出发的最近深度点
         // --------------------------------------------------------------
         // //第一个步骤中，我们从光的位置出发，对六个面使用了不同的投影和视图矩阵来渲染的场景。    
@@ -162,8 +164,8 @@ int main()
         std::vector<glm::mat4> shadowTransforms;
         shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
         shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-        shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-        shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+        shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+        shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
         shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
         shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
 
@@ -172,12 +174,8 @@ int main()
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
             glClear(GL_DEPTH_BUFFER_BIT);
             simpleDepthShader.use();
-            for (GLuint i = 0; i < 6; ++i) {
-                stringstream ss;
-                string index;
-                ss << i;
-                index = ss.str();
-                simpleDepthShader.SetMat4(("shadowMatrices[" + index + "]").c_str(), shadowTransforms[i]);
+            for (GLuint i = 0; i < 6; ++i) {                
+                simpleDepthShader.SetMat4(("shadowMatrices[" + std::to_string(i) + "]").c_str(), shadowTransforms[i]);
             }
             simpleDepthShader.SetFloat("far_plane", far_plane);
             simpleDepthShader.setVec3("lightPos", lightPos);       
@@ -205,7 +203,7 @@ int main()
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, woodTexture);
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, depthCubemap);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
         renderScene(shader);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -235,33 +233,36 @@ void renderScene(Shader& shader)
     //Cubes** cube1
     model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
+    model = glm::scale(model, glm::vec3(0.5f));
     shader.SetMat4("model", model);
     renderCube();
 
     //cube2
     model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(2.0f, 3.0f, 1.0));
-    model = glm::scale(model, glm::vec3(1.5f));
+    model = glm::scale(model, glm::vec3(0.75f));
     shader.SetMat4("model", model);
     renderCube();
 
     //cube3
     model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(-3.0f, -1.0f, 0.0));
+    model = glm::scale(model, glm::vec3(0.5f));
     shader.SetMat4("model", model);
     renderCube();
 
     //cube4
     model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(-1.5f, 1.0f, 1.5));    
+    model = glm::scale(model, glm::vec3(0.5f));
     shader.SetMat4("model", model);
     renderCube();
 
     //cube5
     model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(-1.5f, 2.0f, -3.0));
-    model = glm::rotate(model, 60.0f, glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-    model = glm::scale(model, glm::vec3(1.5));
+    model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+    model = glm::scale(model, glm::vec3(0.75));
     shader.SetMat4("model", model);
     renderCube();
 }
@@ -380,15 +381,14 @@ unsigned int generateCubeMap() {
     glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
     for (int i = 0; i < 6; i++) {
         //开辟内存
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-
-        //设置合适的纹理参数
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);        
     }
+    //设置合适的纹理参数
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
     return depthCubemap;

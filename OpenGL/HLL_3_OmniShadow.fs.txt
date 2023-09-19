@@ -17,21 +17,22 @@ uniform float far_plane;
 uniform bool shadows;
 
 float ShadowCalculation(vec3 fragPos){
-    vec3 fragToLight = fragPos - lightPos;
+    vec3 lightToFrag = fragPos - lightPos;
 
     //closestDepth是光源和它最接近的可见fragment之间的标准化的深度值。使用方向向量来采样立方体贴图
-    float closestDepth = texture(depthMap, fragToLight).r;
+    float closestDepth = texture(depthMap, lightToFrag).r;
 
     //closestDepth值在0到1的范围内，所以我们先将其转换回0到far_plane的范围，这需要把他乘以far_plane
     closestDepth *= far_plane;
 
     //获取当前片元和光源之间的深度值，也就是两点之间的距离
-    float currentDepth = length(fragToLight);
+    float currentDepth = length(lightToFrag);
     
     //比较，同时需要包含一个阴影偏移，防止失真
     float bias = 0.05;
     float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
 
+    //FragColor = vec4(vec3(closestDepth / far_plane), 1.0);
     return shadow;
 }
 
@@ -57,4 +58,6 @@ void main(){
     vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular)) * color;    
 
     FragColor = vec4(lighting, 1.0f);
+    //FragColor = vec4(vec3(closestDepth / far_plane), 1.0);
+    //FragColor = vec4(shadow,shadow,shadow,1.0f);
 }
