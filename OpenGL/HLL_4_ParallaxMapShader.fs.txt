@@ -17,7 +17,7 @@ uniform float height_scale;
 
 //texCoords是纹理坐标，viewDir是切线空间下的像素坐标到相机的方向向量
 //这个函数返回被位移后的纹理坐标。
-vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir)
+vec2 ParallaxMapping1(vec2 texCoords, vec3 viewDir)
 { 
     float height =  texture(depthMap, texCoords).r; //得到该点实际高度值
     //height_scale是缩放参数
@@ -25,9 +25,124 @@ vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir)
     //当viewDir大致平行于表面时，他的z元素接近于0.0，除法会返回比viewDir垂直于表面的时候更大的P向量。
     //所以，从本质上，相比正朝向表面，当带有角度地看向平面时，会更大程度地缩放P的大小，从而增加纹理坐标的偏移。
     //这样在是叫上会获得更大的真实度。
-    //vec2 p = viewDir.xy / viewDir.z * (height * height_scale); 
-    vec2 p = viewDir.xy * (height * height_scale); 	//还是选择不除z，视觉效果比较正确
+    vec2 p = viewDir.xy / viewDir.z * (height * height_scale);     
     return texCoords - p;
+}
+
+//使用分层高度方法(陡峭视差映射)
+vec2 ParallaxMapping2(vec2 texCoords, vec3 viewDir)
+{ 
+    //被分为不同层级深度的层数
+    const float numLayers = 10.0;
+    //计算每一层的大小
+    float layerHeight = 1.0 / numLayers;
+    //当前层的纹理坐标对应的高度纹理的实际高度值(严格根据层数对应的纹理坐标对高度纹理进行取值)
+    float currentLayerHeight = 0.0;
+    //先算出p向量，然后再对这个向量进行切分
+    vec2 P = viewDir.xy * height_scale;
+    vec2 deltaTexCoords = P / numLayers;
+
+    //然后计算每一层的纹理坐标
+    //当前层的纹理坐标
+    vec2 currentTexCoords = texCoords;
+    //当前层的纹理坐标对应在高度纹理中的高度值(根据我们偏移后的纹理坐标进行采样,也就是沿着P)
+    float currentHeightMapValue = texture(depthMap, currentTexCoords).r;
+
+    //当 当前层的高度小于当前层的实际高度 就不断循环
+    //我们循环每一层高度，直到沿着P向量找到第一个低于真实高度的纹理坐标偏移量，然后用当前的纹理坐标减去偏移量
+    while(currentLayerHeight < currentHeightMapValue){
+        //沿着向量P偏移纹理坐标
+        currentTexCoords -= deltaTexCoords;
+        //得到在当前纹理坐标下的高度值
+        currentHeightMapValue = texture(depthMap, currentTexCoords).r;
+        //得到下一层的高度
+        currentLayerHeight += layerHeight;
+    }
+
+    return currentTexCoords;    
+}
+
+/*
+//使用分层高度方法(陡峭视差映射)
+//改进方法：当垂直一个表面的时候纹理位移比一定角度看时小
+vec2 ParallaxMapping3(vec2 texCoords, vec3 viewDir)
+{ 
+    //被分为不同层级深度的层数
+    const float minLayers = 8.0;
+    const float maxLayers = 32.0;
+    //mix(x,y,a):(1-a) * x + y * a  但是会报错，所以只能注释，可能由于opengl自身的问题
+    const float numLayers = mix(maxLayers, minLayers, abs(dot(vec3(0.0, 0.0, 1.0), viewDir)));
+    //计算每一层的大小
+    float layerHeight = 1.0 / numLayers;
+    //当前层的纹理坐标对应的高度纹理的实际高度值(严格根据层数对应的纹理坐标对高度纹理进行取值)
+    float currentLayerHeight = 0.0;
+    //先算出p向量，然后再对这个向量进行切分
+    vec2 P = viewDir.xy * height_scale;
+    vec2 deltaTexCoords = P / numLayers;
+
+    //然后计算每一层的纹理坐标
+    //当前层的纹理坐标
+    vec2 currentTexCoords = texCoords;
+    //当前层的纹理坐标对应在高度纹理中的高度值(根据我们偏移后的纹理坐标进行采样,也就是沿着P)
+    float currentHeightMapValue = texture(depthMap, currentTexCoords).r;
+
+    //当 当前层的高度小于当前层的实际高度 就不断循环
+    //我们循环每一层高度，直到沿着P向量找到第一个低于真实高度的纹理坐标偏移量，然后用当前的纹理坐标减去偏移量
+    while(currentLayerHeight < currentHeightMapValue){
+        //沿着向量P偏移纹理坐标
+        currentTexCoords -= deltaTexCoords;
+        //得到在当前纹理坐标下的高度值
+        currentHeightMapValue = texture(depthMap, currentTexCoords).r;
+        //得到下一层的高度
+        currentLayerHeight += layerHeight;
+    }
+
+    return currentTexCoords;    
+}
+*/
+
+//使用分层高度方法(视差遮蔽映射)
+vec2 ParallaxMapping4(vec2 texCoords, vec3 viewDir)
+{ 
+    //被分为不同层级深度的层数
+    const float numLayers = 10.0;
+    //计算每一层的大小
+    float layerHeight = 1.0 / numLayers;
+    //当前层的纹理坐标对应的高度纹理的实际高度值(严格根据层数对应的纹理坐标对高度纹理进行取值)
+    float currentLayerHeight = 0.0;
+    //先算出p向量，然后再对这个向量进行切分
+    vec2 P = viewDir.xy * height_scale;
+    vec2 deltaTexCoords = P / numLayers;
+
+    //然后计算每一层的纹理坐标
+    //当前层的纹理坐标
+    vec2 currentTexCoords = texCoords;
+    //当前层的纹理坐标对应在高度纹理中的高度值(根据我们偏移后的纹理坐标进行采样,也就是沿着P)
+    float currentHeightMapValue = texture(depthMap, currentTexCoords).r;
+
+    //当 当前层的高度小于当前层的实际高度 就不断循环
+    //我们循环每一层高度，直到沿着P向量找到第一个低于真实高度的纹理坐标偏移量，然后用当前的纹理坐标减去偏移量
+    while(currentLayerHeight < currentHeightMapValue){
+        //沿着向量P偏移纹理坐标
+        currentTexCoords -= deltaTexCoords;
+        //得到在当前纹理坐标下的高度值
+        currentHeightMapValue = texture(depthMap, currentTexCoords).r;
+        //得到下一层的高度
+        currentLayerHeight += layerHeight;
+    }
+
+    //得到碰撞之前那一层高度的纹理坐标
+    vec2 prevTexCoords = currentTexCoords + deltaTexCoords;
+
+    //得到碰撞前后两层的高度
+    float afterHeight = currentHeightMapValue - currentLayerHeight;
+    float beforeHeight = texture(depthMap, prevTexCoords).r - currentLayerHeight + layerHeight;
+
+    //插值纹理坐标
+    float weight = afterHeight / (afterHeight - beforeHeight);
+    vec2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1-weight);
+
+    return finalTexCoords;    
 }
 
 void main()
@@ -36,7 +151,7 @@ void main()
     vec3 viewDir = normalize(fs_in.TangentViewPos - fs_in.TangentFragPos);
     vec2 texCoords = fs_in.TexCoords;
     
-    texCoords = ParallaxMapping(fs_in.TexCoords,  viewDir);       
+    texCoords = ParallaxMapping4(fs_in.TexCoords,  viewDir);       
     if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
         discard;
 
