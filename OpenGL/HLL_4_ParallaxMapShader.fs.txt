@@ -1,0 +1,62 @@
+#version 330 core
+out vec4 FragColor;
+
+in VS_OUT {
+    vec3 FragPos;           //世界空间的顶点位置
+    vec2 TexCoords;
+    vec3 TangentLightPos;   //切线空间的光源位置
+    vec3 TangentViewPos;    //切线空间的观察位置
+    vec3 TangentFragPos;    //切线空间的顶点位置
+} fs_in;
+
+uniform sampler2D diffuseMap;
+uniform sampler2D normalMap;
+uniform sampler2D depthMap;
+
+uniform float height_scale;
+
+//texCoords是纹理坐标，viewDir是切线空间下的像素坐标到相机的方向向量
+//这个函数返回被位移后的纹理坐标。
+vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir)
+{ 
+    float height =  texture(depthMap, texCoords).r; //得到该点实际高度值
+    //height_scale是缩放参数
+    //viewDir是经过标准化的，viewDir.z会在0到1之间的某处。
+    //当viewDir大致平行于表面时，他的z元素接近于0.0，除法会返回比viewDir垂直于表面的时候更大的P向量。
+    //所以，从本质上，相比正朝向表面，当带有角度地看向平面时，会更大程度地缩放P的大小，从而增加纹理坐标的偏移。
+    //这样在是叫上会获得更大的真实度。
+    //vec2 p = viewDir.xy / viewDir.z * (height * height_scale); 
+    vec2 p = viewDir.xy * (height * height_scale); 	//还是选择不除z，视觉效果比较正确
+    return texCoords - p;
+}
+
+void main()
+{           
+    // offset texture coordinates with Parallax Mapping
+    vec3 viewDir = normalize(fs_in.TangentViewPos - fs_in.TangentFragPos);
+    vec2 texCoords = fs_in.TexCoords;
+    
+    texCoords = ParallaxMapping(fs_in.TexCoords,  viewDir);       
+    if(texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
+        discard;
+
+    // obtain normal from normal map
+    vec3 normal = texture(normalMap, texCoords).rgb;
+    normal = normalize(normal * 2.0 - 1.0);   
+   
+    // get diffuse color
+    vec3 color = texture(diffuseMap, texCoords).rgb;
+    // ambient
+    vec3 ambient = 0.1 * color;
+    // diffuse
+    vec3 lightDir = normalize(fs_in.TangentLightPos - fs_in.TangentFragPos);
+    float diff = max(dot(lightDir, normal), 0.0);
+    vec3 diffuse = diff * color;
+    // specular    
+    vec3 reflectDir = reflect(-lightDir, normal);
+    vec3 halfwayDir = normalize(lightDir + viewDir);  
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
+
+    vec3 specular = vec3(0.2) * spec;
+    FragColor = vec4(ambient + diffuse + specular, 1.0);
+}

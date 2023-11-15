@@ -153,6 +153,9 @@
     <ClCompile Include="HighLevelLight_4_NormalMapping.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="HighLevelLight_5_ParallaxMapping.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Shader.h">

@@ -1,4 +1,4 @@
-/*
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -25,6 +25,7 @@ void renderQuad();
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+float heightScale = 0.1f;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -80,18 +81,20 @@ int main()
 
     // build and compile shaders
     // -------------------------
-    Shader shader("HLL_4_NormalMapShader.vs.txt", "HLL_4_NormalMapShader.fs.txt");
+    Shader shader("HLL_4_ParallaxMapShader.vs.txt", "HLL_4_ParallaxMapShader.fs.txt");
 
     // load textures
     // -------------
-    unsigned int diffuseMap = loadTexture("brickwall.jpg");
-    unsigned int normalMap = loadTexture("brickwall_normal.jpg");
+    unsigned int diffuseMap = loadTexture("bricks2.jpg");
+    unsigned int normalMap = loadTexture("bricks2_normal.jpg");
+    unsigned int heightMap = loadTexture("bricks2_disp.jpg");
 
     // shader configuration
     // --------------------
     shader.use();
     shader.SetInt("diffuseMap", 0);
     shader.SetInt("normalMap", 1);
+    shader.SetInt("depthMap", 2);
 
     // lighting info
     // -------------
@@ -128,10 +131,14 @@ int main()
         shader.SetMat4("model", model);
         shader.setVec3("viewPos", camera.Position);
         shader.setVec3("lightPos", lightPos);
+        shader.SetFloat("height_scale", heightScale);   //按 Q 和 E 缩小增加heightScale值
+        std::cout << heightScale << std::endl;
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, diffuseMap);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, normalMap);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, heightMap);
         renderQuad();
 
         // render light source (simply re-renders a smaller plane at the light's position for debugging/visualization)
@@ -258,13 +265,26 @@ void processInput(GLFWwindow* window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        if(heightScale > 0.0f)
+            heightScale -= 0.0005f;
+        else
+            heightScale = 0.0f;
+    }
+    else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+        if(heightScale < 1.0f)
+            heightScale += 0.0005f;
+        else
+            heightScale = 1.0f;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-    // make sure the viewport matches the new window dimensions; note that width and 
+    // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
 }
@@ -321,7 +341,7 @@ unsigned int loadTexture(char const* path)
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT); // for this tutorial: use GL_CLAMP_TO_EDGE to prevent semi-transparent borders. Due to interpolation it takes texels from next repeat 
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT); // for this tutorial: use GL_CLAMP_TO_EDGE to prevent semi-transparent borders. Due to interpolation it takes texels from next repeat
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -336,4 +356,3 @@ unsigned int loadTexture(char const* path)
 
     return textureID;
 }
-*/
