@@ -6,11 +6,11 @@ layout (location = 3) in vec3 aTangent;
 layout (location = 4) in vec3 aBitangent;
 
 out VS_OUT {
-    vec3 FragPos;
+    vec3 FragPos;           //世界空间的顶点位置
     vec2 TexCoords;
-    vec3 TangentLightPos;
-    vec3 TangentViewPos;
-    vec3 TangentFragPos;
+    vec3 TangentLightPos;   //切线空间的光源位置
+    vec3 TangentViewPos;    //切线空间的观察位置
+    vec3 TangentFragPos;    //切线空间的顶点位置
 } vs_out;
 
 uniform mat4 projection;
@@ -25,7 +25,9 @@ void main()
     vs_out.FragPos = vec3(model * vec4(aPos, 1.0));   
     vs_out.TexCoords = aTexCoords;
     
+    //法线矩阵：模型矩阵的逆矩阵的转置矩阵(将法线从模型空间转换到世界空间)
     mat3 normalMatrix = transpose(inverse(mat3(model)));
+    //格拉姆-施密特正交化过程（Gram-Schmidt process）
     vec3 T = normalize(normalMatrix * aTangent);
     vec3 N = normalize(normalMatrix * aNormal);
     T = normalize(T - dot(T, N) * N);
