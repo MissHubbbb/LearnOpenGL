@@ -1,0 +1,28 @@
+#version 330 core
+out vec4 FragColor;
+
+in vec2 TexCoords;
+
+uniform sampler2D scene;        //场景原来的颜色图像(或者说颜色缓冲)
+uniform sampler2D bloomBlur;    //高亮区域模糊过后的颜色图像(颜色缓冲)
+
+uniform bool bloom;         //是否打开bloom效果
+uniform float exposure;     //曝光程度
+
+void main(){
+    const float gamma = 2.2;
+    vec3 hdrColor = texture(scene, TexCoords).rgb;      
+    vec3 bloomColor = texture(bloomBlur, TexCoords).rgb;
+
+    if(bloom){
+        hdrColor += bloomColor;
+    }
+    
+    // tone mapping
+    vec3 result = vec3(1.0) - exp(-hdrColor * exposure);
+
+    // gamma矫正     
+    result = pow(result, vec3(1.0 / gamma));
+
+    FragColor = vec4(result, 1.0);
+}

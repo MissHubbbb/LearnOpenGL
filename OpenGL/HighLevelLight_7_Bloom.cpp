@@ -1,4 +1,4 @@
-/*
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -26,8 +26,8 @@ void renderCube();
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
-bool hdr = true;
-bool hdrKeyPressed = false;
+bool bloom = true;
+bool bloomKeyPressed = false;
 float exposure = 1.0f;
 
 // camera
@@ -84,65 +84,108 @@ int main()
 
     // build and compile shaders
     // -------------------------
-    Shader shader("HLL_6_HDRLightShader.vs.txt", "HLL_6_HDRLightShader.fs.txt");
-    Shader hdrShader("HLL_6_HDRShader.vs.txt", "HLL_6_HDRShader.fs.txt");
+    //第一个shader程序先渲染场景的基本物体和灯光，并且提取高于阈值的亮部，在像素着色器中输出两个渲染目标
+    Shader shader("HLL_7_bloomRenderObjShader.vs.txt", "HLL_7_bloomRenderObjShader.fs.txt");
+    //第二个shader程序则用来将光源作为方块展示出来
+    Shader shaderLight("HLL_7_bloomRenderObjShader.vs.txt", "HLL_7_lightBoxShader.fs.txt");
+    //第三个shader用来模糊颜色缓冲
+    Shader shaderBlur("HLL_7_GuassinBlurShader.vs.txt", "HLL_7_GuassinBlurShader.fs.txt");
+    //最后一个shader程序用来合并原始颜色缓冲和模糊后的结果
+    Shader shaderBloomFinal("HLL_7_bloomFinalShader.vs.txt", "HLL_7_bloomFinalShader.fs.txt");
 
     // load textures
     // -------------
     unsigned int woodTexture = loadTexture("wood.png", true); // note that we're loading the texture as an SRGB texture
+    unsigned int containerTexture = loadTexture("container2.png", true); // note that we're loading the texture as an SRGB texture
 
-    // configure floating point framebuffer
-    //配置 floating point framebuffer（浮点帧缓存）
-    // ------------------------------------
+    // configure (floating point) framebuffers
+    // 配置 floating point framebuffer（浮点帧缓存）
+    // ---------------------------------------
     unsigned int hdrFBO;
     glGenFramebuffers(1, &hdrFBO);
-
-    // create floating point color buffer
-    //创建 floating point color buffer （浮点颜色缓冲）
-    unsigned int colorBuffer;
-    glGenTextures(1, &colorBuffer);
-    glBindTexture(GL_TEXTURE_2D, colorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    // create depth buffer (renderbuffer)
-    //创建深度缓冲(depth buffer / renderbuffer)
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    // create 2 floating point color buffers (1 for normal rendering, other for brightness threshold values)
+    //创建 2个 floating point color buffer （2个浮点颜色缓冲，一个用于法线渲染，另一个用于亮度阈值(亮部提取)）
+    unsigned int colorBuffers[2];
+    glGenTextures(2, colorBuffers);
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);  // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // attach texture to framebuffer
+        //附着纹理到帧缓冲中
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0);
+    }
+    // create and attach depth buffer (renderbuffer)
+    // 创建深度缓冲(depth buffer / renderbuffer)
     unsigned int rboDepth;
     glGenRenderbuffers(1, &rboDepth);
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
-
-    // attach buffers
-    //给浮点帧缓冲附着上上面的颜色缓冲深度缓冲
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
+    //给浮点帧缓冲附着上上面的深度缓冲       
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+
+    // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+    //告诉openGL我们会使用帧缓冲中的哪个颜色缓冲组件进行渲染
+    //告诉openGL通过glDrawBuffers渲染到多个颜色缓冲（否则openGL默认只会渲染到第一个颜色附件，而忽略其他的）
+    unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
+
+    // finally check if framebuffer is complete
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "Framebuffer not complete!" << std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // lighting info (四个点光源)
+    // ping-pong-framebuffer for blurring    
+    //为图像的高斯模糊处理创建两个基本的帧缓冲，每个只有一个颜色缓冲纹理
+    unsigned int pingpongFBO[2];
+    unsigned int pingpongColorbuffers[2];
+    glGenFramebuffers(2, pingpongFBO);
+    glGenTextures(2, pingpongColorbuffers);
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+        glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongColorbuffers[i], 0);
+        // also check if framebuffers are complete (no need for depth buffer)
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cout << "Framebuffer not complete!" << std::endl;
+    }
+
+    // lighting info
     // -------------
     // positions
     std::vector<glm::vec3> lightPositions;
-    lightPositions.push_back(glm::vec3(0.0f, 0.0f, 49.5f)); // back light
-    lightPositions.push_back(glm::vec3(-1.4f, -1.9f, 9.0f));
-    lightPositions.push_back(glm::vec3(0.0f, -1.8f, 4.0f));
-    lightPositions.push_back(glm::vec3(0.8f, -1.7f, 6.0f));
+    lightPositions.push_back(glm::vec3(0.0f, 0.5f, 1.5f));
+    lightPositions.push_back(glm::vec3(-4.0f, 0.5f, -3.0f));
+    lightPositions.push_back(glm::vec3(3.0f, 0.5f, 1.0f));
+    lightPositions.push_back(glm::vec3(-.8f, 2.4f, -1.0f));
     // colors
     std::vector<glm::vec3> lightColors;
-    lightColors.push_back(glm::vec3(200.0f, 200.0f, 200.0f));
-    lightColors.push_back(glm::vec3(0.1f, 0.0f, 0.0f));
-    lightColors.push_back(glm::vec3(0.0f, 0.0f, 0.2f));
-    lightColors.push_back(glm::vec3(0.0f, 0.1f, 0.0f));
+    lightColors.push_back(glm::vec3(5.0f, 5.0f, 5.0f));
+    lightColors.push_back(glm::vec3(10.0f, 0.0f, 0.0f));
+    lightColors.push_back(glm::vec3(0.0f, 0.0f, 15.0f));
+    lightColors.push_back(glm::vec3(0.0f, 5.0f, 0.0f));
+
 
     // shader configuration
     // --------------------
     shader.use();
     shader.SetInt("diffuseTexture", 0);
-    hdrShader.use();
-    hdrShader.SetInt("hdrBuffer", 0);
+    shaderBlur.use();
+    shaderBlur.SetInt("image", 0);
+    shaderBloomFinal.use();
+    shaderBloomFinal.SetInt("scene", 0);
+    shaderBloomFinal.SetInt("bloomBlur", 1);
 
     // render loop
     // -----------
@@ -160,16 +203,16 @@ int main()
 
         // render
         // ------
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // 1. render scene into floating point framebuffer
-        // 1. 渲染场景到浮点帧缓冲中(float point framebuffer)
         // -----------------------------------------------
         glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (GLfloat)SCR_WIDTH / (GLfloat)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 model = glm::mat4(1.0f);
         shader.use();
         shader.SetMat4("projection", projection);
         shader.SetMat4("view", view);
@@ -182,27 +225,107 @@ int main()
             shader.setVec3("lights[" + std::to_string(i) + "].Color", lightColors[i]);
         }
         shader.setVec3("viewPos", camera.Position);
-        // render tunnel
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 25.0));
-        model = glm::scale(model, glm::vec3(2.5f, 2.5f, 27.5f));
+
+        //创建一个大立方体作为地板
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, -1.0f, 0.0));
+        model = glm::scale(model, glm::vec3(12.5f, 0.5f, 12.5f));
         shader.SetMat4("model", model);
-        shader.SetInt("inverse_normals", true);
         renderCube();
+
+        //然后创建多个cube放在场景中
+        glBindTexture(GL_TEXTURE_2D, containerTexture);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
+        model = glm::scale(model, glm::vec3(0.5f));
+        shader.SetMat4("model", model);
+        renderCube();
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 1.0));
+        model = glm::scale(model, glm::vec3(0.5f));
+        shader.SetMat4("model", model);
+        renderCube();
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-1.0f, -1.0f, 2.0));
+        model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+        shader.SetMat4("model", model);
+        renderCube();
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 2.7f, 4.0));
+        model = glm::rotate(model, glm::radians(23.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+        model = glm::scale(model, glm::vec3(1.25));
+        shader.SetMat4("model", model);
+        renderCube();
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-2.0f, 1.0f, -3.0));
+        model = glm::rotate(model, glm::radians(124.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+        shader.SetMat4("model", model);
+        renderCube();
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-3.0f, 0.0f, 0.0));
+        model = glm::scale(model, glm::vec3(0.5f));
+        shader.SetMat4("model", model);
+        renderCube();
+
+        //最后将所有光源作为bright cube展示出来
+        shaderLight.use();
+        shaderLight.SetMat4("projection", projection);
+        shaderLight.SetMat4("view", view);
+
+        //逐光源计算着色结果
+        for (unsigned int i = 0; i < lightPositions.size(); i++)
+        {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(lightPositions[i]));
+            model = glm::scale(model, glm::vec3(0.25f));
+            shaderLight.SetMat4("model", model);
+            shaderLight.setVec3("lightColor", lightColors[i]);
+            renderCube();
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        // 2. now render floating point color buffer to 2D quad and tonemap HDR colors to default framebuffer's (clamped) color range
-        // 2. 现在渲染浮点颜色缓冲到2D四方形面片上，并且色调映射(ToneMap)HDR颜色到默认帧缓冲的颜色缓冲范围内
+        // 2. blur bright fragments with two-pass Gaussian Blur 
+        // 得到一个HDR纹理后，用提取出来的亮色纹理填充一个帧缓冲，然后对其模糊处理10次，5次垂直5次水平
+        // --------------------------------------------------
+        bool horizontal = true, first_iteration = true;
+        unsigned int amount = 10;
+        shaderBlur.use();
+        
+        //每次循环根据打算 渲染 的是水平还是垂直来绑定两个缓冲其中之一，而将另一个绑定为纹理进行模糊。
+        //比如说，第一次对原图纹理做一次水平高斯模糊，将结果放入其中一块帧缓存对应的纹理内存。
+        //然后第二次对上一步完成的渲染纹理再做垂直高斯模糊，结果放入另一块帧缓存对应的纹理内存。
+        //如此交替进行，类似乒乓球。
+        //这里的循环次数我们设置为10次，应该是由程序员自己决定。循环次数越多，模糊的强度就越大。
+        for (unsigned int i = 0; i < amount; i++)
+        {            
+            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+            shaderBlur.SetInt("horizontal", horizontal);
+            glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongColorbuffers[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
+            renderQuad();
+            horizontal = !horizontal;
+            if (first_iteration)
+                first_iteration = false;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // 3. now render floating point color buffer to 2D quad and tonemap HDR colors to default framebuffer's (clamped) color range
         // --------------------------------------------------------------------------------------------------------------------------
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        hdrShader.use();
+        shaderBloomFinal.use();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, colorBuffer);
-        hdrShader.SetInt("hdr", hdr);
-        hdrShader.SetFloat("exposure", exposure);
+        glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
+        shaderBloomFinal.SetInt("bloom", bloom);
+        shaderBloomFinal.SetFloat("exposure", exposure);
         renderQuad();
 
-        std::cout << "hdr: " << (hdr ? "on" : "off") << "| exposure: " << exposure << std::endl;
+        std::cout << "bloom: " << (bloom ? "on" : "off") << "| exposure: " << exposure << std::endl;
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -336,14 +459,14 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
 
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !hdrKeyPressed)
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !bloomKeyPressed)
     {
-        hdr = !hdr;
-        hdrKeyPressed = true;
+        bloom = !bloom;
+        bloomKeyPressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE)
     {
-        hdrKeyPressed = false;
+        bloomKeyPressed = false;
     }
 
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
@@ -444,5 +567,3 @@ unsigned int loadTexture(char const* path, bool gammaCorrection)
 
     return textureID;
 }
-
-*/

@@ -170,6 +170,7 @@
     <ClCompile Include="HighLevelLight_4_NormalMapping.cpp" />
     <ClCompile Include="HighLevelLight_5_ParallaxMapping.cpp" />
     <ClCompile Include="HighLevelLight_6_HDR.cpp" />
+    <ClCompile Include="HighLevelLight_7_Bloom.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />
