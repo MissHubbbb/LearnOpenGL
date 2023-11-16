@@ -42,6 +42,7 @@ public:
 		Position = position;
 		WorldUp = worldUp;
 		Yaw = yaw;
+		//Yaw = 90.0;	//¸Ä±äZÖá³¯Ïò
 		Pitch = pitch;
 		updateCameraVectors();
 	}

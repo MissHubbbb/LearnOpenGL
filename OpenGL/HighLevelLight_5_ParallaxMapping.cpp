@@ -1,4 +1,4 @@
-
+/*
 #define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -81,7 +81,7 @@ int main()
 
     // build and compile shaders
     // -------------------------
-    Shader shader("HLL_4_ParallaxMapShader.vs.txt", "HLL_4_ParallaxMapShader.fs.txt");
+    Shader shader("HLL_5_ParallaxMapShader.vs.txt", "HLL_5_ParallaxMapShader.fs.txt");
 
     // load textures
     // -------------
@@ -356,3 +356,4 @@ unsigned int loadTexture(char const* path)
 
     return textureID;
 }
+*/

@@ -1,0 +1,49 @@
+#version 330 core
+out vec4 FragColor;
+
+in vec2 TexCoords;
+
+uniform sampler2D hdrBuffer;	//浮点颜色缓冲
+uniform bool hdr;	//是否开启了hdr
+uniform float exposure;	//曝光
+
+vec3 SimpleHDRColor(){
+    return texture(hdrBuffer, TexCoords).rgb;
+}
+
+//Tone Mapping(Reinhard色调映射)
+//分散整个HDR颜色值到LDR颜色值上，所有值都有对应
+vec3 ReinhardToneMapping(vec3 hdrColor){    
+    return hdrColor / (hdrColor + vec3(1.0, 1.0, 1.0));
+}
+
+//Reinhard with exposure
+vec3 ReinhardToneMappingWithExposure(vec3 hdrColor){
+    return vec3(1.0, 1.0, 1.0) - exp(-hdrColor * exposure);
+}
+
+//gamma矫正
+vec3 GammaCorrection(vec3 myColor, float gamma){
+    return pow(myColor, vec3(1.0 / gamma));
+}
+
+void main(){
+    const float gamma = 2.2;
+    vec3 hdrColor = SimpleHDRColor();
+    
+    if(hdr)
+    {
+        //Reinhard色调映射
+        vec3 mapped = ReinhardToneMappingWithExposure(hdrColor);
+
+        //gamma矫正
+        mapped = GammaCorrection(mapped, gamma);
+
+        FragColor = vec4(mapped, 1.0);
+    }
+    else
+    {
+        vec3 result = GammaCorrection(hdrColor, gamma);
+        FragColor = vec4(result, 1.0);
+    }
+}
