@@ -1,0 +1,24 @@
+#version 330 core
+
+//MRT，片元着色器输出多个渲染目标
+layout (location = 0) out vec3 gPosition;
+layout (location = 1) out vec3 gNormal;
+layout (location = 2) out vec4 gAlbedoSpec;
+
+in vec2 TexCoords;
+in vec3 FragPos;
+in vec3 Normal;
+
+uniform sampler2D texture_diffuse1;     //物体的漫反射贴图
+uniform sampler2D texture_specular1;    //物体高光反射贴图
+
+void main(){
+    //gBuffer中的片元position的纹理缓冲(第一张gBuffer纹理)
+    gPosition = FragPos;    
+    //gBuffer中每个片元的normal纹理缓冲
+    gNormal = normalize(Normal);
+    //gBuffer中的albedo(diffuse)纹理缓冲
+    gAlbedoSpec.rgb = texture(texture_diffuse1, TexCoords).rgb;
+    //gBuffer中的specular纹理缓冲
+    gAlbedoSpec.a = texture(texture_specular1, TexCoords).r;
+}
