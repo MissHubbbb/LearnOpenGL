@@ -1,0 +1,36 @@
+#version 330 core
+layout (location = 0) out vec4 gPositionDepth;
+layout (location = 1) out vec3 gNormal;
+layout (location = 2) out vec4 gAlbedoSpec;
+
+in vec2 TexCoords;
+in vec3 FragPos;
+in vec3 Normal;
+
+uniform sampler2D texture_diffuse1;     //物体的漫反射贴图
+uniform sampler2D texture_specular1;    //物体高光反射贴图
+
+const float NEAR = 0.1f;     //投影矩阵近平面距离
+const float FAR = 50.0f;     //投影矩阵远平面距离
+
+float LinearizeDepth(float depth){
+    float z = depth * 2.0 - 1.0;    //回到NDC
+    return (2.0 * NEAR * FAR) / (FAR + NEAR - z * (FAR - NEAR));
+}
+
+void main(){
+    // 将片元的位置向量存进gBuffer中
+    gPositionDepth.rgb = FragPos;
+
+    // 将片元的线性深度存进gBuffer中
+    // 因为提取出来的线性深度是在观察空间的，所以之后的运算也是在观察空间中
+    gPositionDepth.a = LinearizeDepth(gl_FragCoord.z);
+
+    // 将片元的法线向量存进gBuffer中
+    gNormal = normalize(Normal);
+
+    // 将片元的漫反射颜色存进gBuffer中
+    gAlbedoSpec.rgb = vec3(0.95);
+    //gAlbedoSpec.rgb = texture(texture_diffuse1, TexCoords).rgb;
+    //gAlbedoSpec.a = texture(texture_specular1, TexCoords).r;
+}

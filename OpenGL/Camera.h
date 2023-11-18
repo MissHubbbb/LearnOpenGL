@@ -42,8 +42,9 @@ public:
 		Position = position;
 		WorldUp = worldUp;
 		Yaw = yaw;
-		//Yaw = 90.0;	//改变Z轴朝向
-		Pitch = pitch;
+		//Yaw = 90.0f;	//改变Z轴朝向
+		//Pitch = pitch;
+		Pitch = -89.9f;
 		updateCameraVectors();
 	}
 

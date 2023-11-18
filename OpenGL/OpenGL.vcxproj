@@ -172,6 +172,7 @@
     <ClCompile Include="HighLevelLight_6_HDR.cpp" />
     <ClCompile Include="HighLevelLight_7_Bloom.cpp" />
     <ClCompile Include="HighLevelLight_8_1_deferredShading.cpp" />
+    <ClCompile Include="HighLevelLight_9_SSAOShading.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />

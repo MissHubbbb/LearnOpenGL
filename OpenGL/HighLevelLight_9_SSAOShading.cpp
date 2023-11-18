@@ -1,4 +1,4 @@
-/*
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -14,6 +14,7 @@
 #include "Model.h"
 
 #include <iostream>
+#include <random>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -31,7 +32,7 @@ bool bloomKeyPressed = false;
 float exposure = 1.0f;
 
 // camera
-Camera camera(glm::vec3(0.0f, 5.0f, 5.0f));
+Camera camera(glm::vec3(0.0f, 3.0f, 7.0f));
 float lastX = (float)SCR_WIDTH / 2.0;
 float lastY = (float)SCR_HEIGHT / 2.0;
 bool firstMouse = true;
@@ -39,6 +40,11 @@ bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+float ourLerp(float a, float b, float f)
+{
+    return a + f * (b - a);
+}
 
 int main() {
     // glfw: initialize and configure
@@ -87,32 +93,20 @@ int main() {
     // build and compile shaders
     // -------------------------
     //第一个Shader程序为几何处理阶段，将法线，位置，颜色和高光渲染到gbuffer中
-    Shader geometryPassShader("HLL_8_1_gBufferShader.vs.txt", "HLL_8_1_gBufferShader.fs.txt");
+    Shader geometryPassShader("HLL_9_geometrySSAOShader.vs.txt", "HLL_9_geometrySSAOShader.fs.txt");
 
-    //第二个Shader程序为延迟光照处理阶段，将gbuffer中的内容和光源都转换到世界空间中进行光照着色的计算
-    //Shader lightingPassShader("HLL_8_1_deferShader.vs.txt", "HLL_8_1_deferShader.fs.txt");
-    // 
-    //8_2内容，主要是对光源进行优化，使用Light Volume，也就是光源有半径，只有在光源半径内的片元才参与该光源的计算
-    Shader lightingPassShader("HLL_8_1_deferShader.vs.txt", "HLL_8_2_deferWithLightVolumeShader.fs.txt");
+    //第二个Shader程序为ssao算法阶段
+    Shader ssaoPassShader("HLL_9_ssaoShader.vs.txt", "HLL_9_ssaoShader.fs.txt");
 
-    //第三个Shader程序为将光源显示为立方体，但是因为这需要前向渲染的方法，而我们前面用的是延迟渲染，所以在后面还需要做一些操作
-    Shader lightBoxShader("HLL_8_1_deferLightBoxShader.vs.txt", "HLL_8_1_deferLightBoxShader.fs.txt");
+    //第三个Shader为ssao的模糊
+    Shader ssaoBlurPassShader("HLL_9_ssaoShader.vs.txt", "HLL_9_ssaoBlurShader.fs.txt");
+
+    //第三个Shader程序为延迟光照处理阶段，将gbuffer中的内容和光源都转换到视图空间中进行光照着色的计算   
+    Shader lightingPassShader("HLL_9_ssaoShader.vs.txt", "HLL_9_ssaoLightingShader.fs.txt");
 
     // load models
     // -----------
     Model nano(".\\Obj\\Nanosuit\\nanosuit.obj");
-
-    //多个模型位置信息
-    std::vector<glm::vec3> objectPositions;
-    objectPositions.push_back(glm::vec3(-3.0, -0.5, -3.0));
-    objectPositions.push_back(glm::vec3(0.0, -0.5, -3.0));
-    objectPositions.push_back(glm::vec3(3.0, -0.5, -3.0));
-    objectPositions.push_back(glm::vec3(-3.0, -0.5, 0.0));
-    objectPositions.push_back(glm::vec3(0.0, -0.5, 0.0));
-    objectPositions.push_back(glm::vec3(3.0, -0.5, 0.0));
-    objectPositions.push_back(glm::vec3(-3.0, -0.5, 3.0));
-    objectPositions.push_back(glm::vec3(0.0, -0.5, 3.0));
-    objectPositions.push_back(glm::vec3(3.0, -0.5, 3.0));
 
     // configure g-buffer framebuffer
     // ------------------------------
@@ -121,31 +115,33 @@ int main() {
     glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 
     //配置position, normal、albedo和specular的缓冲    
-    unsigned int gPosition, gNormal, gAlbedoSpec;
+    unsigned int gPositionDepth, gNormal, gAlbedo;
 
     //配置poisiton的纹理缓冲(color buffer)
-    glGenTextures(1, &gPosition);
-    glBindTexture(GL_TEXTURE_2D, gPosition);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glGenTextures(1, &gPositionDepth);
+    glBindTexture(GL_TEXTURE_2D, gPositionDepth);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPositionDepth, 0);
 
     //配置normal的纹理缓冲(color buffer)
     glGenTextures(1, &gNormal);
     glBindTexture(GL_TEXTURE_2D, gNormal);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
 
     //albedo + specular 的纹理缓冲(color buffer)
-    glGenTextures(1, &gAlbedoSpec);
-    glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glGenTextures(1, &gAlbedo);
+    glBindTexture(GL_TEXTURE_2D, gAlbedo);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedo, 0);
 
     // 告诉OpenGL我们将使用(帧缓冲的)那种颜色附件来进行渲染
     //并且由于我们使用多渲染目标，所以需要显示告诉OpenGL我们需要使用glDrawBuffers渲染的是和GBuffer关联的哪个颜色缓冲
@@ -161,35 +157,110 @@ int main() {
 
     //最后检查帧缓冲的完整性
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "Framebuffer not complete!" << std::endl;
+        std::cout << "gBuffer Framebuffer not complete!" << std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // lighting info
-    // -------------
-    const unsigned int NR_LIGHTS = 32;  //灯光的数量
-    std::vector<glm::vec3> lightPositions;
-    std::vector<glm::vec3> lightColors;
-    srand(13);
-    for (unsigned int i = 0; i < NR_LIGHTS; i++)
-    {
-        // calculate slightly random offsets 随机轻微偏移每一盏灯的位置
-        float xPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 3.0);
-        float yPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 4.0) + 5.0;
-        float zPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 3.0);
-        lightPositions.push_back(glm::vec3(xPos, yPos, zPos));
-        // also calculate random color 随机改变每一盏灯的颜色
-        float rColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
-        float gColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
-        float bColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
-        lightColors.push_back(glm::vec3(rColor, gColor, bColor));
+    // 创建支持SSAO处理过程的framebuffer(包括后面的模糊)
+    unsigned int ssaoFBO, ssaoBlurFBO;      //ssao阶段，为每一个生成的片段计算其遮蔽值
+    glGenFramebuffers(1, &ssaoFBO);
+    glGenFramebuffers(1, &ssaoBlurFBO);
+
+    // 然后创建上面两个FBO的颜色缓冲区
+    unsigned int ssaoColorBuffer, ssaoBlurColorBuffer;
+
+    // 先绑定ssao的framebuffer，然后初始化ssaoColorBuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
+    glGenTextures(1, &ssaoColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+    //由于环境遮蔽的结果是一个灰度值，我们将只需要纹理的红色分量，所以将颜色缓冲的内部格式设为GL_RED
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "SSAO Framebuffer not complete!" << std::endl;
+
+    //然后是模糊阶段(ssao blur)    
+    glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
+    glGenTextures(1, &ssaoBlurColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, ssaoBlurColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoBlurColorBuffer, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "SSAO Blur Framebuffer not complete!" << std::endl;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // 生成采样核 (sample kernel)
+    // ----------------------
+    std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0);     //生成在0.0和1.0之间的随机floats
+    std::default_random_engine generator;
+    std::vector<glm::vec3> ssaoKernel;
+    for (unsigned int i = 0; i < 64; i++) {     //生成64个样本点
+        // 这些采样点实际是对原本片元的偏移量，所以我们想要深度的取值范围不变(0.0到1.0)，而xy的取值范围变为(-1.0到1.0)
+        glm::vec3 sample
+        (
+            randomFloats(generator) * 2.0 - 1.0,    //x轴
+            randomFloats(generator) * 2.0 - 1.0,    //y轴
+            randomFloats(generator)                     //z轴
+        );
+
+        // 还不太理解，官方解释是由于样本核将沿着表面法线对齐，因此生成的样本向量将全部位于半球中。
+        sample = glm::normalize(sample);
+        sample *= randomFloats(generator);
+
+        //我们更愿意将更多的注意放在靠近真正片段的遮蔽上，也就是将样本靠近原点分布。
+        float scale = GLfloat(i) / 64.0;  //每个采样点占权重值多少
+        scale = ourLerp(0.1f, 1.0f, scale * scale);
+        sample *= scale;
+        ssaoKernel.push_back(sample);
     }
+
+    // 生成噪声贴图(noise texture)
+    // 引入一些随机性到采样核上，我们可以大大减少获得不错结果所需的样本数量
+    // ----------------------
+    std::vector<glm::vec3> ssaoNoise;
+    //创建一个4*4朝向切线空间平面法线的随机旋转向量数组
+    for (unsigned int i = 0; i < 16; i++) {
+        //因为采样核是沿着正z方向在切线空间内旋转，我们设定z分量为0.0，从而围绕z轴旋转
+        glm::vec3 noise
+        (
+            randomFloats(generator) * 2.0 - 1.0,
+            randomFloats(generator) * 2.0 - 1.0,
+            0.0f
+        );
+        ssaoNoise.push_back(noise);
+    }
+
+    //噪声贴图，只有4*4大小
+    unsigned int noiseTexture;
+    glGenTextures(1, &noiseTexture);
+    glBindTexture(GL_TEXTURE_2D, noiseTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);   //让水平和垂直方向都不断重复
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    // lighting info (只有一盏平行光灯)
+    // -------------
+    glm::vec3 lightPos = glm::vec3(2.0, 4.0, -2.0);
+    glm::vec3 lightColor = glm::vec3(0.2, 0.2, 0.7);
 
     // shader configuration
     // --------------------
     lightingPassShader.use();
-    lightingPassShader.SetInt("gPosition", 0);
+    lightingPassShader.SetInt("gPositionDepth", 0);
     lightingPassShader.SetInt("gNormal", 1);
-    lightingPassShader.SetInt("gAlbedoSpec", 2);    
+    lightingPassShader.SetInt("gAlbedo", 2);
+    lightingPassShader.SetInt("ssao", 3);
+
+    ssaoPassShader.use();
+    ssaoPassShader.SetInt("gPositionDepth", 0);
+    ssaoPassShader.SetInt("gNormal", 1);
+    ssaoPassShader.SetInt("texNoise", 2);
 
     // render loop
     // -----------
@@ -211,84 +282,90 @@ int main() {
 
         // 1.第一步是几何处理阶段：将场景的几何/颜色数据渲染进gBuffer中
         glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-            glm::mat4 view = camera.GetViewMatrix();
-            glm::mat4 model = glm::mat4(1.0f);
-            geometryPassShader.use();
-            geometryPassShader.SetMat4("projection", projection);
-            geometryPassShader.SetMat4("view", view);
-            //因为每个物体的位置不一样，所以模型矩阵也不一样，需要单独处理
-            for (unsigned int i = 0; i < objectPositions.size(); i++) {
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, objectPositions[i]);
-                model = glm::scale(model, glm::vec3(0.5f));
-                geometryPassShader.SetMat4("model", model);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 50.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 model = glm::mat4(1.0f);
+        geometryPassShader.use();
+        geometryPassShader.SetMat4("projection", projection);
+        geometryPassShader.SetMat4("view", view);
 
-                //绘制模型
-                nano.Draw(geometryPassShader);
-            }            
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        //渲染floor cube
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0, -1.0f, 2.0f));
+        model = glm::scale(model, glm::vec3(10.0f, 1.0f, 10.0f));
+        geometryPassShader.SetMat4("model", model);
+        //geometryPassShader.SetInt("invertedNormals", 1); // 反转法线后就能在cube内看到cube的样子
+        renderCube();
+        //geometryPassShader.SetInt("invertedNormals", 0);
 
-            // 2.延迟光照处理阶段：使用gBuffer中的内容，通过对屏幕上每个像素进行迭代，计算光照结果
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            lightingPassShader.use();
-            //激活贴图0，并将其与gPosition纹理绑定
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, gPosition);
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, gNormal);
-            glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+        //nano模型躺在地板上
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 1.0f, 3.0));
+        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0, 0.0, 0.0));
+        model = glm::scale(model, glm::vec3(0.5f));
+        geometryPassShader.SetMat4("model", model);
+        nano.Draw(geometryPassShader);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-            //给deferShader发去uniform的变量，一共多少盏灯就发多少次
-            for (unsigned int i = 0; i < lightPositions.size(); i++) {
-                lightingPassShader.setVec3("lights[" + std::to_string(i) + "].Position", lightPositions[i]);
-                lightingPassShader.setVec3("lights[" + std::to_string(i) + "].Color", lightColors[i]);
+        // 2.创建SSAO贴图(延迟光照处理阶段：使用gBuffer中的内容，通过对屏幕上每个像素进行迭代，计算光照结果)
+        glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ssaoPassShader.use();
+        for (unsigned int i = 0; i < 64; i++) {
+            ssaoPassShader.setVec3("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
+        }
+        ssaoPassShader.SetMat4("projection", projection);
+        //激活贴图0，并将其与gPosition纹理绑定
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gPositionDepth);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, gNormal);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, noiseTexture);
+        renderQuad();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-                //更新光衰，并计算radius(因为是点光源)
-                const float constant = 1.0f;    //不需要把这个发送给shader，因为我们总是假设它为1。
-                const float linear = 0.7f;
-                const float quadratic = 1.8f;
-                lightingPassShader.SetFloat("lights[" + std::to_string(i) + "].Linear", linear);
-                lightingPassShader.SetFloat("lights[" + std::to_string(i) + "].Quadratic", quadratic);
+        
+        // 3. Blur SSAO texture to remove noise
+        glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ssaoBlurPassShader.use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+        renderQuad();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-                //计算light volume/sphere 的 radius
-                //下面这个是光源的最亮的颜色分量，因为解光源最亮的强度值方程最好地反映了理想 光体积 半径
-                const float maxBrightness = std::fmax(std::fmax(lightColors[i].r, lightColors[i].g), lightColors[i].b);
-                float radius = (-linear + std::sqrtf(linear * linear - 4 * quadratic * (constant - (256.0f / 5.0f) * maxBrightness))) / (2 * quadratic);
-                lightingPassShader.SetFloat("lights[" + std::to_string(i) + "].Radius", radius);
-            }
-            lightingPassShader.setVec3("viewPos", camera.Position);
+        
+        // 4. lighting pass: traditional deferred Blinn-Phong lighting with added screen-space ambient occlusion
+        // -----------------------------------------------------------------------------------------------------
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        lightingPassShader.use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gPositionDepth);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, gNormal);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, gAlbedo);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, ssaoBlurColorBuffer);        
+        //然后发送相关数据
+        glm::vec3 lightPosView = glm::vec3(camera.GetViewMatrix() * glm::vec4(lightPos, 1.0));  //光源在视图空间的位置
+        lightingPassShader.setVec3("light.Position", lightPosView);
+        lightingPassShader.setVec3("light.Color", lightColor);
+        //更新光衰
+        const float constant = 1.0f;
+        const float linear = 0.09f;
+        const float quadratic = 0.032f;
+        lightingPassShader.SetFloat("light.Linear", linear);
+        lightingPassShader.SetFloat("light.Quadratic", quadratic);
+        
+        //渲染四边形面片
+        renderQuad();               
 
-            //渲染四边形面片
-            renderQuad();
-
-            // 2.5 为了能正常像正向渲染那样渲染出光立方体，就需要考虑它的深度，所以需要从gBuffer中提取深度纹理
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);    //只需要读取gBuffer，不需要写入
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);            //绑定写入帧缓冲到默认帧缓冲中
-             // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
-            // the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the 		
-            // depth buffer in another shader stage (or somehow see to match the default framebuffer's internal format with the FBO's internal format).
-            glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);       //复制深度缓冲内容到默认帧缓冲的深度缓冲中
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-            // 3.像正常情况一样正向渲染所有光立方体
-            lightBoxShader.use();
-            lightBoxShader.SetMat4("projection", projection);
-            lightBoxShader.SetMat4("view", view);
-            for (unsigned int i = 0; i < lightPositions.size(); i++) {
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, lightPositions[i]);
-                model = glm::scale(model, glm::vec3(0.125f));
-                lightBoxShader.SetMat4("model", model);
-                lightBoxShader.setVec3("lightColor", lightColors[i]);
-                renderCube();
-            }
-
-            //交换缓冲
-            glfwSwapBuffers(window);
-            glfwPollEvents();
+        //交换缓冲
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
 
     glfwTerminate();
@@ -456,4 +533,4 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
-*/
+

@@ -1,0 +1,63 @@
+#version 330 core
+out float FragColor;
+
+in vec2 TexCoords;
+
+uniform sampler2D gPositionDepth;    //gBuffer位置纹理
+uniform sampler2D gNormal;      //gBuffer法线纹理
+uniform sampler2D texNoise;     //噪声纹理(4*4大小的噪声纹理)
+
+uniform vec3 samples[64];       //法线半球核(sample kernel)
+
+// 关于kernel的一些参数
+int kernelSize = 64;    //kernel的个数
+float radius = 0.5;
+float bias = 0.025;
+
+uniform mat4 projection;
+
+// tile noise texture over screen based on screen dimensions divided by noise size
+//想要将噪声纹理平铺在屏幕上，但是由于纹理坐标uv的取值在0.0和1.0之间，texNoise纹理将不会平铺
+//所以将通过屏幕分辨率除以噪声纹理大小的方式计算uv的缩放大小
+const vec2 noiseScale = vec2(800.0/4.0, 600.0/4.0); 
+
+void main(){
+    // get input for SSAO algorithm
+    vec3 fragPos = texture(gPositionDepth, TexCoords).xyz;
+    vec3 normal = normalize(texture(gNormal, TexCoords).rgb);
+    vec3 randomVec = normalize(texture(texNoise, TexCoords * noiseScale).xyz);
+
+    //创建TBN矩阵，将向量从切线空间变换到观察空间
+    //根据Gramm-Schmidt处理的过程，创建了一个正交基，每次都会根据randomVec的值稍微倾斜
+    vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+    vec3 bitangent = cross(normal, tangent);
+    mat3 TBN = mat3(tangent, bitangent, normal);
+
+    //接下来对采样核的每个核样本进行迭代    
+    float occlusion = 0.0;
+    for(int i = 0; i < kernelSize; i++){
+        //需要先将sample从切线空间变换到观察空间
+        vec3 sample = TBN * samples[i];     //前面已经说了，他是相对于片元位置的偏移,sample本身是一个向量
+        sample = fragPos + sample * radius; //radius乘上偏移样本 来增加(或减少) SSAO的有效取样半径
+
+        //变换sample到屏幕空间，一边对sample的position/depth进行采样，就像将其位置直接渲染到屏幕上一样
+        //由于向量当前位于视图空间，需要转换到裁剪空间
+        vec4 offset = vec4(sample, 1.0);
+        offset = projection * offset;
+        offset.xyz /= offset.w;
+        offset.xyz = offset.xyz * 0.5 + 0.5;    //将生成的NDC坐标转换为[0.0, 1.0]范围，以便使用他们来采样位置纹理
+        
+        float sampleDepth = -texture(gPositionDepth, offset.xy).w;
+
+        //这行还不懂，什么意思？
+        float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fragPos.z - sampleDepth));
+        //sampleDepth是我们存在gbuffer中的深度值，其中包含了各种物体的真实深度，是我们用来比较的标准
+        //sample.z是我们自己设置的偏移量，他的深度是随机取的
+        //检查样本的当前深度值是否大于存储的深度值，如果是就添加到贡献中
+        //注意，因为我们是朝向-z方向的，也就是说对于-z来说，z越大，-z越小，所以比较的顺序应该反过来
+        occlusion += (sample.z <= sampleDepth ? 1.0 : 0.0) * rangeCheck;
+    }
+    occlusion = 1.0 - (occlusion / kernelSize);
+
+    FragColor = occlusion;
+}
