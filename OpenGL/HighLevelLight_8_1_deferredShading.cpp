@@ -87,8 +87,13 @@ int main() {
     // -------------------------
     //第一个Shader程序为几何处理阶段，将法线，位置，颜色和高光渲染到gbuffer中
     Shader geometryPassShader("HLL_8_1_gBufferShader.vs.txt", "HLL_8_1_gBufferShader.fs.txt");
+
     //第二个Shader程序为延迟光照处理阶段，将gbuffer中的内容和光源都转换到世界空间中进行光照着色的计算
-    Shader lightingPassShader("HLL_8_1_deferShader.vs.txt", "HLL_8_1_deferShader.fs.txt");
+    //Shader lightingPassShader("HLL_8_1_deferShader.vs.txt", "HLL_8_1_deferShader.fs.txt");
+    // 
+    //8_2内容，主要是对光源进行优化，使用LIght Volume，也就是光源有半径，只有在光源半径内的片元才参与该光源的计算
+    Shader lightingPassShader("HLL_8_1_deferShader.vs.txt", "HLL_8_2_deferWithLightVolumeShader.fs.txt");
+
     //第三个Shader程序为将光源显示为立方体，但是因为这需要前向渲染的方法，而我们前面用的是延迟渲染，所以在后面还需要做一些操作
     Shader lightBoxShader("HLL_8_1_deferLightBoxShader.vs.txt", "HLL_8_1_deferLightBoxShader.fs.txt");
 
@@ -241,10 +246,17 @@ int main() {
                 lightingPassShader.setVec3("lights[" + std::to_string(i) + "].Color", lightColors[i]);
 
                 //更新光衰，并计算radius(因为是点光源)
+                const float constant = 1.0f;    //不需要把这个发送给shader，因为我们总是假设它为1。
                 const float linear = 0.7f;
                 const float quadratic = 1.8f;
                 lightingPassShader.SetFloat("lights[" + std::to_string(i) + "].Linear", linear);
                 lightingPassShader.SetFloat("lights[" + std::to_string(i) + "].Quadratic", quadratic);
+
+                //计算light volume/sphere 的 radius
+                //下面这个是光源的最亮的颜色分量，因为解光源最亮的强度值方程最好地反映了理想 光体积 半径
+                const float maxBrightness = std::fmax(std::fmax(lightColors[i].r, lightColors[i].g), lightColors[i].b);
+                float radius = (-linear + std::sqrtf(linear * linear - 4 * quadratic * (constant - (256.0f / 5.0f) * maxBrightness))) / (2 * quadratic);
+                lightingPassShader.SetFloat("lights[" + std::to_string(i) + "].Radius", radius);
             }
             lightingPassShader.setVec3("viewPos", camera.Position);
 
