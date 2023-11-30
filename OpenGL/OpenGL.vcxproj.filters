@@ -168,6 +168,12 @@
     <ClCompile Include="HighLevelLight_9_SSAOShading.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="PBR_1_Light.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="PBR_1_LightWithTexture.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Shader.h">

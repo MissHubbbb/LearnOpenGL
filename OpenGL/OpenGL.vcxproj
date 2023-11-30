@@ -188,6 +188,8 @@
     <ClCompile Include="Light_6_MutipleLightSources.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ObjectPractice.cpp" />
+    <ClCompile Include="PBR_1_Light.cpp" />
+    <ClCompile Include="PBR_1_LightWithTexture.cpp" />
     <ClCompile Include="streamfilePrac.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="test_assimp.cpp" />

@@ -1,4 +1,4 @@
-
+/*
 #define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -101,7 +101,7 @@ int main() {
     //第三个Shader为ssao的模糊
     Shader ssaoBlurPassShader("HLL_9_ssaoShader.vs.txt", "HLL_9_ssaoBlurShader.fs.txt");
 
-    //第三个Shader程序为延迟光照处理阶段，将gbuffer中的内容和光源都转换到视图空间中进行光照着色的计算   
+    //第四个Shader程序为延迟光照处理阶段，将gbuffer中的内容和光源都转换到视图空间中进行光照着色的计算   
     Shader lightingPassShader("HLL_9_ssaoShader.vs.txt", "HLL_9_ssaoLightingShader.fs.txt");
 
     // load models
@@ -533,4 +533,6 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
+
+*/
 
