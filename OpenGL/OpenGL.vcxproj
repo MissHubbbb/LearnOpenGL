@@ -190,6 +190,9 @@
     <ClCompile Include="ObjectPractice.cpp" />
     <ClCompile Include="PBR_1_Light.cpp" />
     <ClCompile Include="PBR_1_LightWithTexture.cpp" />
+    <ClCompile Include="PBR_2_IBL_Diffuse.cpp" />
+    <ClCompile Include="PBR_2_IBL_DiffuseIrrConvo.cpp" />
+    <ClCompile Include="PBR_2_TEST.cpp" />
     <ClCompile Include="streamfilePrac.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="test_assimp.cpp" />

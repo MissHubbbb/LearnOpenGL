@@ -1,0 +1,12 @@
+#version 330 core
+layout (location = 0) in vec3 aPos;
+
+out vec3 WorldPos;
+
+uniform mat4 projection;
+uniform mat4 view;
+
+void main(){
+    WorldPos = aPos;    //因为默认cubemap在原点，所以没有旋转平移缩放，默认原点的1*1*1的cube，不需要世界空间矩阵
+    gl_Position = projection * view * vec4(WorldPos, 1.0);  
+}

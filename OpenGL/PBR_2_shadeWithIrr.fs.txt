@@ -1,0 +1,124 @@
+#version 330 core
+out vec4 FragColor;     //片段着色器输出的片段颜色
+
+in vec2 TexCoords;
+in vec3 WorldPos;
+in vec3 Normal;
+
+uniform vec3 camPos;
+
+//模型表面的材质参数
+uniform vec3 albedo;    //反照率(材质颜色或者基本反射率)
+uniform float metallic; //金属度
+uniform float roughness;    //粗糙度
+uniform float ao;       //ao
+
+//IBL
+uniform samplerCube irradianceMap;
+
+//光源（四个点光源）
+uniform vec3 lightPositions[4];
+uniform vec3 lightColors[4];
+
+const float PI = 3.14159265359;
+
+vec3 fresnelSchlick(float cosTheta, vec3 F0);   //菲涅尔函数
+float NormalDistributionGGX(vec3 N, vec3 H, float roughness);   //法线分布函数
+float GeometrySchlickGGX(float NdotV, float roughness);         //GGX项的子项
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness);   //几何项(包含光线项和观察项)
+
+void main(){
+    vec3 N = normalize(Normal);
+    vec3 V = normalize(camPos - WorldPos);
+    vec3 R = normalize(reflect(-V, N));
+
+    //计算材质的基本反射率F0
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, albedo, metallic); //如果是金属的话，就根据初始的F0和表现金属属性的反射率进行线性插值
+
+    //遍历每个点光源，计算它们在反射率方程中的贡献值
+    vec3 Lo = vec3(0.0);
+    for(int i = 0; i < 4; i++){
+        vec3 L = normalize(lightPositions[i] - WorldPos);
+        vec3 H = normalize(L + V);
+
+        //float cosTheta = max(dot(N, H), 0.0);
+        float distance = length(lightPositions[i] - WorldPos);
+        float attenuation = 1.0 / (distance * distance);
+        vec3 radiance = lightColors[i] * attenuation;
+
+        //Cook-Torrance BRDF
+        float NDF = NormalDistributionGGX(N, H, roughness);
+        float Geo = GeometrySmith(N, V, L, roughness);
+        vec3 Fresnel = fresnelSchlick(clamp(dot(V, H), 0.0, 1.0), F0);
+
+        vec3 nominator = NDF * Geo * Fresnel;
+        float denominator = 4.0 * max(dot(L, N), 0.0) * max(dot(V, N), 0.0) + 0.001;     //加上0.001避免出现除0错误
+        vec3 spec = nominator / denominator;
+
+        //根据fresnel我们能直接知道反射比率
+        vec3 kS = Fresnel;  
+        vec3 kD = vec3(1.0) - kS;   //根据反射率知道折射率（因为除了反射就只剩折射了）
+        kD *= 1.0 - metallic;   //金属度越高，该材质就越没有漫反射(因为被吸收了)
+
+        float NdotL = max(0.0, dot(N, L));  
+        Lo += (kD * albedo / PI + spec) * radiance * NdotL; //kS就是菲尼尔项，所以在最后公式不需要再乘ks，只要有Fresnel就行了
+    }
+
+    //ambient lighting(now use IBL as ambient term)
+    vec3 kS = fresnelSchlick(max(dot(N, V), 0.0), F0);
+    vec3 kD = 1.0 - kS;
+    kD *= 1.0 - metallic;
+    vec3 irradiance = texture(irradianceMap, N).rgb;
+    vec3 diffuse = irradiance * albedo;
+    vec3 ambient = kD * diffuse * ao;
+
+    vec3 myColor = ambient + Lo;
+
+    myColor = myColor / (myColor + vec3(1.0));  //HDR转换到LDR(色调映射)
+    myColor = pow(myColor, vec3(1.0 / 2.2));    //gamma矫正
+
+    FragColor = vec4(myColor, 1.0);
+}
+
+//F0是光线垂直于表面时的基本反射率,或者说直接观察表面时有多少光线会被反射
+vec3 fresnelSchlick(float cosTheta, vec3 F0)
+{
+    //return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1 - cosTheta, 0.0, 1.0), 5.0);
+}
+
+float NormalDistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a2 = roughness * roughness;
+    float NdotH = max(0.0, dot(N,H));
+    float NdotH2 = NdotH * NdotH;
+    
+    float nuor = a2;
+    float deno = NdotH2 * (a2 - 1.0) + 1.0;
+    deno = PI * deno * deno;
+
+    return nuor / deno;
+}
+
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    //直接光照的几何函数的粗糙度重投影为以下两行
+    float r = (roughness + 1.0);
+    float k = (r*r) / 8.0;
+
+    float nuor = NdotV;
+    float deno = NdotV * (1.0 - k) + k;
+
+    return nuor / deno;
+}
+
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(0.0, dot(N, V));
+    float NdotL = max(0.0, dot(N, L));
+    float ggx1 = GeometrySchlickGGX(NdotV, roughness);
+    float ggx2 = GeometrySchlickGGX(NdotL, roughness);
+
+    return ggx1 * ggx2;
+}
