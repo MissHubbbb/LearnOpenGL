@@ -35,7 +35,7 @@ void main(){
             float D = NormalDistributionGGX(N, H, roughness);
             float NdotH = max(0.0, dot(N, H));
             float HdotV = max(0.0, dot(H, V));
-            float pdf = D * NdotH / (4.0 * HdotV) + 0.0001;
+            float pdf = D * NdotH / (4.0 * HdotV) + 0.0001;     //这个pdf是根据书pbrt14.1.1节得来的
             
             float resolution = 512.0;   //cubemap每一面的分辨率
             float saTexel = 4.0 * PI / (6.0 * resolution * resolution);

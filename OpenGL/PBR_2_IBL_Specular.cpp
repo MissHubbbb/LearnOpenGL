@@ -1,4 +1,4 @@
-
+/*
 #define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -20,6 +20,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
 unsigned int loadTexture(const char* path);
+void renderQuad();
 void renderCube();
 void renderSphere();
 
@@ -84,15 +85,18 @@ int main()
 
     // build and compile shaders
     // -------------------------
-    Shader pbrShader("PBR_2_shadeWithIrr.vs.txt", "PBR_2_shadeWithIrr.fs.txt");
+    Shader pbrShader("PBR_2_IBLEndShade.vs.txt", "PBR_2_IBLEndShade.fs.txt");
     Shader equirectangularToCubemapShader("PBR_2_Cubemap.vs.txt", "PBR_2_RadianceCubemap.fs.txt");
     Shader irradianceShader("PBR_2_Cubemap.vs.txt", "PBR_2_IrradianceCubemap.fs.txt");
     Shader prefilterShader("PBR_2_Cubemap.vs.txt", "PBR_2_Prefilter.fs.txt");
+    Shader brdfShader("PBR_2_BRDF.vs.txt", "PBR_2_BRDF.fs.txt");
     Shader backgroundShader("PBR_2_Skybox.vs.txt", "PBR_2_Skybox.fs.txt");
 
     pbrShader.use();
-    pbrShader.SetInt("irradianceMap", 0);
-    pbrShader.SetVec3("albedo", 1.0f, 1.0f, 1.0f);
+    pbrShader.SetInt("irradianceMap", 0);    
+    pbrShader.SetInt("prefilterMap", 1);
+    pbrShader.SetInt("brdfLUT", 2);
+    pbrShader.SetVec3("albedo", 0.5f, 0.0f, 0.0f);
     pbrShader.SetFloat("ao", 1.0f);
 
     backgroundShader.use();
@@ -133,7 +137,8 @@ int main()
     // ---------------------------------
     stbi_set_flip_vertically_on_load(true);
     int width, height, nrComponents;
-    float* data = stbi_loadf("empty_workshop_1k.hdr", &width, &height, &nrComponents, 0);
+    float* data = stbi_loadf("empty_workshop_1k.hdr", &width, &height, &nrComponents, 0);    
+    //float* data = stbi_loadf("panorama_map.hdr", &width, &height, &nrComponents, 0);
     unsigned int hdrTexture;
     if (data) {
         glGenTextures(1, &hdrTexture);
@@ -290,6 +295,33 @@ int main()
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    // pbr: generate a 2D LUT from the BRDF equations used.
+    // ----------------------------------------------------
+    // 生成2D lookup texture，横轴(u坐标)为cos(theta)，纵轴(v坐标)为roughness
+    unsigned int brdfLUTTexture;
+    glGenTextures(1, &brdfLUTTexture);
+
+    //为LUT预先分配足够的内存
+    glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 512, 512, 0, GL_RG, GL_FLOAT, 0); //生成的是512*512分辨率的2D纹理
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // 然后，重新配置framebuffer对象并使用 BRDF shader 渲染屏幕quad
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLUTTexture, 0);
+
+    glViewport(0, 0, 512, 512);
+    brdfShader.use();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    renderQuad();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     // initialize static shader uniforms before rendering
     // --------------------------------------------------
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -329,6 +361,10 @@ int main()
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
 
         //先将场景中我们要展示的球画出来
         // render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
@@ -381,7 +417,7 @@ int main()
         //glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
         //glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
         glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
-        renderCube();
+        renderCube();        
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -450,6 +486,37 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
+}
+
+// renderQuad() renders a 1x1 XY quad in NDC
+// -----------------------------------------
+unsigned int quadVAO = 0;
+unsigned int quadVBO;
+void renderQuad()
+{
+    if (quadVAO == 0)
+    {
+        float quadVertices[] = {
+            // positions        // texture Coords
+            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+             1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+             1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+        // setup plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    }
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
 }
 
 // renderCube() renders a 1x1 3D cube in NDC.
@@ -662,3 +729,5 @@ unsigned int loadTexture(char const* path)
 
     return textureID;
 }
+
+*/

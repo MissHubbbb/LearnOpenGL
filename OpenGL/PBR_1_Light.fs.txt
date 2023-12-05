@@ -32,7 +32,7 @@ void main(){
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic); //如果是金属的话，就根据初始的F0和表现金属属性的反射率进行线性插值
 
-    //遍历每个点光源，计算它们在反射率方程中的贡献值
+    //遍历每个点光源，计算它们在反射率方程中的贡献值(这部分是算直接光源的)
     vec3 Lo = vec3(0.0);
     for(int i = 0; i < 4; i++){
         vec3 L = normalize(lightPositions[i] - WorldPos);
