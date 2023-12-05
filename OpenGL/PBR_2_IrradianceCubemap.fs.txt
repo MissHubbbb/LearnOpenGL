@@ -18,7 +18,7 @@ void main()
 
     vec3 irradiance = vec3(0.0);   
     
-    //卷积代码
+    //卷积代码 : 以下这些代码是用来在球面上根据一定的增量的theta和phi来进行光线的采样(均匀采样)，并计算irradiance
     // tangent space calculation from origin point
     vec3 up    = vec3(0.0, 1.0, 0.0);
     vec3 right = normalize(cross(up, N));

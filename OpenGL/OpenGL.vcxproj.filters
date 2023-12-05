@@ -180,7 +180,7 @@
     <ClCompile Include="PBR_2_IBL_DiffuseIrrConvo.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="PBR_2_TEST.cpp">
+    <ClCompile Include="PBR_2_IBL_Specular.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

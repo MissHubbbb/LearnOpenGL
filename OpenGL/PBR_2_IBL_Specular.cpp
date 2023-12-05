@@ -1,4 +1,4 @@
-/*
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -79,13 +79,15 @@ int main()
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
+    glDepthFunc(GL_LEQUAL); //如果输入的深度值小于或等于参考值，则通过
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);     //提供立方体贴图面之间正确过滤的功能(贴图之间的接缝)
 
     // build and compile shaders
     // -------------------------
     Shader pbrShader("PBR_2_shadeWithIrr.vs.txt", "PBR_2_shadeWithIrr.fs.txt");
     Shader equirectangularToCubemapShader("PBR_2_Cubemap.vs.txt", "PBR_2_RadianceCubemap.fs.txt");
     Shader irradianceShader("PBR_2_Cubemap.vs.txt", "PBR_2_IrradianceCubemap.fs.txt");
+    Shader prefilterShader("PBR_2_Cubemap.vs.txt", "PBR_2_Prefilter.fs.txt");
     Shader backgroundShader("PBR_2_Skybox.vs.txt", "PBR_2_Skybox.fs.txt");
 
     pbrShader.use();
@@ -160,7 +162,7 @@ int main()
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);   //开启三线性过滤
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // pbr: set up projection and view matrices for capturing data onto the 6 cubemap face directions
@@ -172,13 +174,13 @@ int main()
         glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),    //左
         //上下两个面的up不同是因为我们是在正方体内部去观察的，所以这两个面的up应该方向(天空和底面)
         glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),     //上
-        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),     //下        
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),     //下
         glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),     //近
         glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))     //远
     };
 
     // pbr: convert HDR equirectangular environment map to cubemap equivalent
-    // ----------------------------------------------------------------------  
+    // ----------------------------------------------------------------------
     equirectangularToCubemapShader.use();
     equirectangularToCubemapShader.SetInt("equirectangularMap", 0);
     equirectangularToCubemapShader.SetMat4("projection", captureProjection);
@@ -196,6 +198,10 @@ int main()
         renderCube();   // renders a 1x1 cube
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // then let OpenGL generate mipmaps from first mip face (combatting visible dots artifact) : 然后让OpenGL生成mipmaps
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
     // pbr: create an irradiance cubemap, and re-scale capture FBO to irradiance scale.
     // --------------------------------------------------------------------------------
@@ -231,6 +237,56 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         renderCube();
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // pbr: create a pre-filter cubemap, and re-scale capture FBO to pre-filter scale. : 生成一个新的立方体贴图来保存预过滤的环境贴图数据
+    // --------------------------------------------------------------------------------
+    unsigned int prefilterMap;
+    glGenTextures(1, &prefilterMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+    for (unsigned int i = 0; i < 6; i++) {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 128, 128, 0, GL_RGB, GL_FLOAT, nullptr);     //基础mip级别的分辨率是每面128*128
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);   //启用三线性过滤
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    //确保为不同的mip级别分配足够的内存
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
+    // pbr: run a quasi monte-carlo simulation on the environment lighting to create a prefilter (cube)map.
+    // ----------------------------------------------------------------------------------------------------
+    // 在环境光照贴图上使用拟蒙特卡洛积分去计算创建预滤波立方体贴图
+    prefilterShader.use();
+    prefilterShader.SetInt("environmentMap", 0);
+    prefilterShader.SetMat4("projection", captureProjection);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    unsigned int maxMipLevels = 5;
+    for (unsigned int mip = 0; mip < maxMipLevels; ++mip)
+    {
+        //根据 MIP 级大小重新分配帧缓冲
+        unsigned int mipWidth = 128 * std::pow(0.5, mip);
+        unsigned int mipHeight = 128 * std::pow(0.5, mip);
+
+        glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipWidth, mipHeight);
+        glViewport(0, 0, mipWidth, mipHeight);
+
+        float roughness = (float)mip / (float)(maxMipLevels - 1);   //粗糙度与mipmap等级关联
+        prefilterShader.SetFloat("roughness", roughness);
+        for (unsigned int i = 0; i < 6; i++) {
+            prefilterShader.SetMat4("view", captureViews[i]);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterMap, mip);
+
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            renderCube();
+        }
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -300,7 +356,7 @@ int main()
 
         //把光源也给画出来
         // render light source (simply re-render sphere at light positions)
-        // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
+        // this looks a bit off as we use the same shader, but it'll make their positions obvious and
         // keeps the codeprint small.
         for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
         {
@@ -322,8 +378,9 @@ int main()
         backgroundShader.SetMat4("view", view);
         //irradianceShader.use();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+        //glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
         //glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
         renderCube();
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -408,7 +465,7 @@ void renderCube()
             // back face
             -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
              1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-             1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
+             1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right
              1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
             -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
             -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
@@ -429,10 +486,10 @@ void renderCube()
             // right face
              1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
              1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-             1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
+             1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right
              1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
              1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-             1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
+             1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
             // bottom face
             -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
              1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
@@ -443,10 +500,10 @@ void renderCube()
             // top face
             -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
              1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-             1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
+             1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right
              1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
             -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-            -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
+            -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left
         };
         glGenVertexArrays(1, &cubeVAO);
         glGenBuffers(1, &cubeVBO);
@@ -605,5 +662,3 @@ unsigned int loadTexture(char const* path)
 
     return textureID;
 }
-
-*/
